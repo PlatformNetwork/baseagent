@@ -188,24 +188,40 @@ BaseAgent is optimized for the Term Challenge benchmark:
 
 ## Documentation
 
-See the [docs/](docs/) folder for comprehensive guides on building autonomous agents:
+### Rules - Agent Development Guidelines
 
-- [What is a Generalist Agent](docs/01-what-is-generalist-agent.md)
-- [Architecture Patterns](docs/02-architecture-patterns.md)
-- [Allowed vs Forbidden](docs/03-allowed-vs-forbidden.md)
-- [Anti-Patterns](docs/04-anti-patterns.md)
-- [Best Practices](docs/05-best-practices.md)
-- [LLM Usage Guide](docs/06-llm-usage-guide.md)
-- [Tool Design](docs/07-tool-design.md)
-- [Error Handling](docs/08-error-handling.md)
-- [Testing Your Agent](docs/09-testing-your-agent.md)
-- [Checklist](docs/10-checklist.md)
+See the [rules/](rules/) folder for comprehensive guides on building autonomous agents:
+
+- [What is a Generalist Agent](rules/01-what-is-generalist-agent.md)
+- [Architecture Patterns](rules/02-architecture-patterns.md)
+- [Allowed vs Forbidden](rules/03-allowed-vs-forbidden.md)
+- [Anti-Patterns](rules/04-anti-patterns.md)
+- [Best Practices](rules/05-best-practices.md)
+- [LLM Usage Guide](rules/06-llm-usage-guide.md)
+- [Tool Design](rules/07-tool-design.md)
+- [Error Handling](rules/08-error-handling.md)
+- [Testing Your Agent](rules/09-testing-your-agent.md)
+- [Checklist](rules/10-checklist.md)
+
+### Astuces - Practical Techniques
+
+See the [astuces/](astuces/) folder for battle-tested techniques used in BaseAgent:
+
+- [Prompt Caching](astuces/01-prompt-caching.md) - Achieve 90%+ cache hit rate
+- [Self-Verification](astuces/02-self-verification.md) - Validate work before completion
+- [Context Management](astuces/03-context-management.md) - Handle long conversations
+- [System Prompt Design](astuces/04-system-prompt-design.md) - Codex-inspired prompts
+- [Tool Output Handling](astuces/05-tool-output-handling.md) - Truncation strategies
+- [Autonomous Mode](astuces/06-autonomous-mode.md) - No questions, just execute
+- [Git Hygiene](astuces/07-git-hygiene.md) - Safe git operations
+- [Cost Optimization](astuces/08-cost-optimization.md) - Reduce API costs
+- [Local Testing](astuces/09-local-testing.md) - Using Term Challenge
 
 ## Credits
 
 - **System Prompt**: Based on [Codex CLI](https://github.com/openai/codex) by OpenAI
 - **Architecture**: Inspired by [OpenCode](https://github.com/anomalyco/opencode) patterns
-- **SDK**: Built on [Term SDK](https://github.com/ArcadeLabsInc/term-sdk)
+- **SDK**: Built on [Term SDK](https://github.com/PlatformNetwork/term-challenge)
 
 ## License
 
