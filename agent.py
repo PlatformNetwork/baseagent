@@ -27,10 +27,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from term_sdk import Agent, AgentContext, LLM, LLMError, CostLimitExceeded, run
 
-from superagent.config.defaults import CONFIG
-from superagent.core.loop import run_agent_loop
-from superagent.tools.registry import ToolRegistry
-from superagent.output.jsonl import emit, ErrorEvent
+from src.config.defaults import CONFIG
+from src.core.loop import run_agent_loop
+from src.tools.registry import ToolRegistry
+from src.output.jsonl import emit, ErrorEvent
 
 
 class SuperAgent(Agent):

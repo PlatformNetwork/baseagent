@@ -105,7 +105,7 @@ from term_sdk import AgentContext
 
 def run(ctx: AgentContext) -> str:
     """Main entry point called by Term SDK."""
-    from superagent.core.loop import run_agent_loop
+from src.core.loop import run_agent_loop
     return run_agent_loop(ctx)
 ```
 
@@ -185,6 +185,21 @@ BaseAgent is optimized for the Term Challenge benchmark:
 | Cache Hit Rate | >90% | Via prompt caching |
 | Task Completion | High | Self-verification ensures quality |
 | Cost Efficiency | Low | Caching + context management |
+
+## Documentation
+
+See the [docs/](docs/) folder for comprehensive guides on building autonomous agents:
+
+- [What is a Generalist Agent](docs/01-what-is-generalist-agent.md)
+- [Architecture Patterns](docs/02-architecture-patterns.md)
+- [Allowed vs Forbidden](docs/03-allowed-vs-forbidden.md)
+- [Anti-Patterns](docs/04-anti-patterns.md)
+- [Best Practices](docs/05-best-practices.md)
+- [LLM Usage Guide](docs/06-llm-usage-guide.md)
+- [Tool Design](docs/07-tool-design.md)
+- [Error Handling](docs/08-error-handling.md)
+- [Testing Your Agent](docs/09-testing-your-agent.md)
+- [Checklist](docs/10-checklist.md)
 
 ## Credits
 
