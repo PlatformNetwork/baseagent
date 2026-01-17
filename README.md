@@ -1,0 +1,201 @@
+# BaseAgent
+
+A high-performance autonomous coding agent built for the [Term Challenge](https://term.challenge) benchmark platform. BaseAgent is designed to compete with state-of-the-art agents like Codex CLI and OpenCode in both performance and cost efficiency.
+
+## Overview
+
+BaseAgent is an autonomous terminal-based coding assistant that:
+- Executes shell commands to explore and modify systems
+- Reads, writes, and patches files with surgical precision
+- Searches codebases using ripgrep for fast pattern matching
+- Validates its own work before signaling completion
+- Manages context efficiently with intelligent compaction
+
+## Key Features
+
+### Codex-Inspired System Prompt
+
+The system prompt is carefully crafted based on OpenAI's Codex CLI prompts, including:
+
+- **AGENTS.md Support**: Respects repository-level agent instructions
+- **Preamble Messages**: Concise updates before tool calls (8-12 words)
+- **Git Worktree Hygiene**: Never reverts uncommitted changes, avoids destructive commands
+- **Frontend Task Guidelines**: Avoids "AI slop" with intentional, bold designs
+- **Review Mindset**: Prioritizes bugs, risks, and regressions when reviewing code
+- **Structured Final Answers**: Clean formatting with headers, bullets, and file references
+
+### Prompt Caching (Anthropic)
+
+Implements intelligent prompt caching for significant cost reduction:
+
+```python
+# Cache breakpoints:
+# 1. System prompt (stable across turns)
+# 2. Last 2 non-system messages (extends cache to conversation history)
+```
+
+This achieves **90%+ cache hit rates** on long conversations, similar to Codex CLI's approach.
+
+### Self-Verification System
+
+Before completing any task, the agent automatically:
+
+1. Re-reads the original instruction
+2. Creates a verification checklist of all requirements
+3. Runs commands to verify each requirement is met
+4. Only signals completion after all verifications pass
+
+### Context Management
+
+Intelligent context management prevents token overflow:
+
+- **Token-based overflow detection** (not message count)
+- **Tool output pruning** (clears old outputs first)
+- **AI compaction** when needed (summarizes conversation history)
+- **Middle-out truncation** for large outputs
+
+## Architecture
+
+```
+baseagent/
+├── agent.py              # Entry point for Term SDK
+├── superagent/
+│   ├── core/
+│   │   ├── loop.py       # Main agent loop with caching
+│   │   ├── compaction.py # Context management
+│   │   ├── session.py    # Message history
+│   │   └── agent.py      # High-level agent interface
+│   ├── tools/
+│   │   ├── specs.py      # Tool JSON schemas
+│   │   ├── registry.py   # Tool execution dispatch
+│   │   ├── shell.py      # Shell command execution
+│   │   ├── apply_patch.py # File patching
+│   │   ├── read_file.py  # File reading
+│   │   ├── write_file.py # File writing
+│   │   ├── grep_files.py # Content search (ripgrep)
+│   │   ├── list_dir.py   # Directory listing
+│   │   └── view_image.py # Image analysis
+│   ├── prompts/
+│   │   └── system.py     # Codex-based system prompt
+│   ├── api/
+│   │   └── client.py     # LLM API client
+│   └── output/
+│       └── jsonl.py      # JSONL event emission
+```
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `shell_command` | Execute shell commands with workdir support |
+| `read_file` | Read files with line numbers and pagination |
+| `write_file` | Create or overwrite files |
+| `apply_patch` | Apply patches to create/update/delete files |
+| `grep_files` | Search file contents with ripgrep |
+| `list_dir` | List directory contents with depth control |
+| `view_image` | Load and analyze images (PNG, JPEG, GIF, WebP) |
+| `update_plan` | Track task progress with step statuses |
+
+## Usage with Term SDK
+
+BaseAgent is designed to work with the [Term SDK](https://github.com/ArcadeLabsInc/term-sdk):
+
+```python
+from term_sdk import AgentContext
+
+def run(ctx: AgentContext) -> str:
+    """Main entry point called by Term SDK."""
+    from superagent.core.loop import run_agent_loop
+    return run_agent_loop(ctx)
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `OPENROUTER_API_KEY` | API key for OpenRouter (default provider) |
+| `ANTHROPIC_API_KEY` | API key for Anthropic direct |
+
+## Configuration
+
+Configuration is loaded from `config.toml`:
+
+```toml
+[agent]
+name = "baseagent"
+model = "anthropic/claude-sonnet-4"
+
+[context]
+max_tokens = 180000
+compaction_threshold = 0.85
+prune_threshold = 0.70
+
+[tools]
+shell_timeout_ms = 120000
+max_output_bytes = 51200
+```
+
+## Development
+
+### Prerequisites
+
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) package manager (recommended)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/PlatformNetwork/baseagent.git
+cd baseagent
+
+# Install dependencies
+uv sync
+
+# Or with pip
+pip install -e .
+```
+
+### Running Tests
+
+```bash
+uv run pytest tests/
+```
+
+### Local Testing
+
+```bash
+# Run with a test instruction
+python -c "
+from superagent.core.loop import run_agent_loop
+from unittest.mock import MagicMock
+
+ctx = MagicMock()
+ctx.instruction = 'List the files in the current directory'
+ctx.cwd = '/tmp'
+ctx.llm = ...  # Your LLM instance
+
+result = run_agent_loop(ctx)
+print(result)
+"
+```
+
+## Benchmarks
+
+BaseAgent is optimized for the Term Challenge benchmark:
+
+| Metric | Target | Notes |
+|--------|--------|-------|
+| Cache Hit Rate | >90% | Via prompt caching |
+| Task Completion | High | Self-verification ensures quality |
+| Cost Efficiency | Low | Caching + context management |
+
+## Credits
+
+- **System Prompt**: Based on [Codex CLI](https://github.com/openai/codex) by OpenAI
+- **Architecture**: Inspired by [OpenCode](https://github.com/anomalyco/opencode) patterns
+- **SDK**: Built on [Term SDK](https://github.com/ArcadeLabsInc/term-sdk)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
