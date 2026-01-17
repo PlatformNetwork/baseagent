@@ -118,22 +118,18 @@ def run(ctx: AgentContext) -> str:
 
 ## Configuration
 
-Configuration is loaded from `config.toml`:
+Configuration is defined in `superagent/config/defaults.py`:
 
-```toml
-[agent]
-name = "baseagent"
-model = "anthropic/claude-sonnet-4"
-
-[context]
-max_tokens = 180000
-compaction_threshold = 0.85
-prune_threshold = 0.70
-
-[tools]
-shell_timeout_ms = 120000
-max_output_bytes = 51200
+```python
+# Key settings
+MAX_CONTEXT_TOKENS = 180000      # Max tokens before compaction
+COMPACTION_THRESHOLD = 0.85      # Trigger compaction at 85% capacity
+PRUNE_THRESHOLD = 0.70           # Target 70% after pruning
+SHELL_TIMEOUT_MS = 120000        # 2 minute timeout for commands
+MAX_OUTPUT_BYTES = 51200         # 50KB max output per tool
 ```
+
+Note: The agent uses Term SDK's LLM interface, so model selection is handled by the Term Challenge platform.
 
 ## Development
 
