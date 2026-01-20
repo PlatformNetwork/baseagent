@@ -14,6 +14,7 @@ All settings are hardcoded - no CLI arguments needed.
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict
 
 
@@ -23,10 +24,10 @@ CONFIG: Dict[str, Any] = {
     # Model Settings (simulates --model gpt-5.2 -c model_reasoning_effort=xhigh)
     # ==========================================================================
     
-    # Model to use via OpenRouter
-    "model": "anthropic/claude-opus-4.5",
+    # Model to use via OpenRouter (prefix with openrouter/ for litellm)
+    "model": os.environ.get("LLM_MODEL", "openrouter/anthropic/claude-sonnet-4-20250514"),
     
-    # Provider (openrouter by default)
+    # Provider
     "provider": "openrouter",
     
     # Reasoning effort: none, minimal, low, medium, high, xhigh (not used for Claude)
