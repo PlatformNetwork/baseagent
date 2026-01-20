@@ -95,9 +95,70 @@ If your agent can identify a specific task and take a shortcut, it's cheating. T
 
 | Forbidden | Why |
 |-----------|-----|
-| External APIs (except allowed LLM) | No unauthorized network calls |
-| Internet resources during tasks | No fetching external content |
-| Other model providers | Only configured providers |
+| Accessing test/validation files | Reading expected outputs |
+| Bypassing task requirements | Skipping steps that should be done |
+
+---
+
+## Explicitly Allowed: External Resources
+
+> **IMPORTANT**: Using external resources is ALLOWED when it's what a real developer would do.
+
+### Official APIs (ALLOWED)
+
+| Allowed | Example |
+|---------|---------|
+| Public APIs for data | REST APIs, GraphQL endpoints |
+| Package managers | `pip install`, `npm install`, `apt-get` |
+| Documentation sites | Reading docs via curl/wget |
+| GitHub/GitLab APIs | Cloning repos, fetching releases |
+| Web scraping (public data) | `curl`, `wget`, `requests` |
+| Cloud service APIs | AWS, GCP, Azure (if credentials provided) |
+
+### Why This Is Allowed
+
+A real developer solving a task would:
+- Google for documentation
+- Use official APIs to fetch data
+- Install packages from registries
+- Clone repositories for reference
+- Scrape public websites for information
+
+**Your agent should be able to do the same.**
+
+### Examples of Allowed External Access
+
+```python
+# ALLOWED: Fetching documentation
+ctx.shell("curl -s https://api.github.com/repos/owner/repo/releases/latest")
+
+# ALLOWED: Installing packages
+ctx.shell("pip install requests beautifulsoup4")
+
+# ALLOWED: Cloning a repository
+ctx.shell("git clone https://github.com/example/repo.git")
+
+# ALLOWED: Using a public API
+ctx.shell("curl -s 'https://api.example.com/data?query=test'")
+
+# ALLOWED: Web scraping public data
+ctx.shell("wget -q https://example.com/public-data.json")
+```
+
+### What Remains Forbidden
+
+```python
+# FORBIDDEN: Accessing the test/validation system
+ctx.shell("cat /validator/expected_output.txt")
+
+# FORBIDDEN: Calling your own pre-computed solution server
+ctx.shell("curl http://my-cheat-server.com/solutions?task=xyz")
+
+# FORBIDDEN: Fingerprinting the benchmark environment
+ctx.shell("curl http://validator-internal/task-hints")
+```
+
+**Rule of thumb**: If a human developer would do it to solve the task legitimately, your agent can do it too.
 | System files outside workspace | `/etc/`, `/root/`, etc. |
 
 ---
