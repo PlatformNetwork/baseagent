@@ -2,8 +2,8 @@
 Main agent loop - the heart of the SuperAgent system.
 
 Implements the agentic loop that:
-1. Receives instruction from term_sdk context
-2. Calls LLM with tools
+1. Receives instruction via --instruction argument
+2. Calls LLM with tools (using litellm)
 3. Executes tool calls
 4. Loops until task is complete
 5. Emits JSONL events throughout
@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from term_sdk import AgentContext, LLMError, CostLimitExceeded
+from src.llm.client import LLMError, CostLimitExceeded
 
 from src.output.jsonl import (
     emit,
@@ -48,7 +48,7 @@ from src.core.compaction import (
 )
 
 if TYPE_CHECKING:
-    from term_sdk import LLM
+    from src.llm.client import LiteLLMClient
     from src.tools.registry import ToolRegistry
 
 
@@ -164,18 +164,18 @@ def _apply_caching(
 
 
 def run_agent_loop(
-    llm: "LLM",
+    llm: "LiteLLMClient",
     tools: "ToolRegistry",
-    ctx: AgentContext,
+    ctx: Any,
     config: Dict[str, Any],
 ) -> None:
     """
     Run the main agent loop.
     
     Args:
-        llm: LLM client from term_sdk
+        llm: LiteLLM client
         tools: Tool registry with available tools
-        ctx: Agent context from term_sdk
+        ctx: Agent context with instruction, shell(), done()
         config: Configuration dictionary
     """
     # Reset item counter for fresh session

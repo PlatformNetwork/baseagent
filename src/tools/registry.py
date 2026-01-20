@@ -16,7 +16,7 @@ from src.tools.base import ToolResult
 from src.tools.specs import get_all_tools
 
 if TYPE_CHECKING:
-    from term_sdk import AgentContext
+    pass  # AgentContext is duck-typed (has shell(), cwd, etc.)
 
 
 @dataclass
@@ -91,7 +91,7 @@ class ExecutorStats:
 class ToolRegistry:
     """Registry for managing and dispatching tool calls.
     
-    Adapted for term_sdk - tools now receive AgentContext for shell execution.
+    Tools receive AgentContext for shell execution.
     Includes caching and execution statistics.
     """
     
@@ -121,7 +121,7 @@ class ToolRegistry:
         """Execute a tool by name.
         
         Args:
-            ctx: Agent context from term_sdk
+            ctx: Agent context with shell() method
             name: Tool name
             arguments: Tool arguments
             
@@ -541,7 +541,7 @@ class ToolRegistry:
         """Execute multiple tool calls in parallel.
         
         Args:
-            ctx: Agent context from term_sdk
+            ctx: Agent context with shell() method
             calls: List of (tool_name, arguments) tuples
             
         Returns:
@@ -581,18 +581,16 @@ class ToolRegistry:
     def get_tools_for_llm(self) -> list:
         """Get tool specifications formatted for the LLM.
         
-        Returns tools in term_sdk Tool format.
+        Returns tools in OpenAI-compatible format for litellm.
         """
-        from term_sdk import Tool
-        
         specs = get_all_tools()
         tools = []
         
         for spec in specs:
-            tools.append(Tool(
-                name=spec["name"],
-                description=spec.get("description", ""),
-                parameters=spec.get("parameters", {}),
-            ))
+            tools.append({
+                "name": spec["name"],
+                "description": spec.get("description", ""),
+                "parameters": spec.get("parameters", {}),
+            })
         
         return tools

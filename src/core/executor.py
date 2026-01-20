@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from term_sdk import AgentContext
+    pass  # AgentContext is duck-typed
 
 from src.tools.registry import ToolRegistry, ExecutorConfig, ExecutorStats
 from src.tools.base import ToolResult
@@ -136,7 +136,7 @@ class AgentExecutor:
         Execute a single tool with timeout.
         
         Args:
-            ctx: Agent context from term_sdk
+            ctx: Agent context with shell() method
             tool_name: Name of tool to execute
             arguments: Tool arguments
             timeout: Optional timeout override (seconds)

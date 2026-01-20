@@ -1,6 +1,5 @@
 """Core module - agent loop, session management, and context compaction."""
 
-# Executor doesn't need term_sdk
 from src.core.executor import (
     AgentExecutor,
     ExecutionResult,
@@ -26,9 +25,8 @@ from src.core.compaction import (
     PRUNE_MARKER,
 )
 
-# Note: run_agent_loop requires term_sdk which is only available at runtime
-# in the term challenge environment. Import it directly when needed:
-# from src.core.loop import run_agent_loop
+# Import run_agent_loop
+from src.core.loop import run_agent_loop
 
 __all__ = [
     # Executor
@@ -51,4 +49,6 @@ __all__ = [
     "PRUNE_PROTECT",
     "PRUNE_MINIMUM",
     "PRUNE_MARKER",
+    # Loop
+    "run_agent_loop",
 ]

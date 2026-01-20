@@ -1,113 +1,184 @@
 #!/usr/bin/env python3
 """
-SuperAgent for Term Challenge - Entry Point.
+SuperAgent for Term Challenge - Entry Point (SDK 3.0 Compatible).
 
-This agent simulates the behavior of:
-codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check \
-  --enable unified_exec -c model_reasoning_effort=xhigh --model gpt-5.2 --json
+This agent accepts --instruction from the validator and runs autonomously.
+Uses litellm for LLM calls instead of term_sdk.
 
-All settings are HARDCODED for benchmark mode.
-No CLI arguments needed - instruction comes from term_sdk context.
+Installation:
+    pip install .                    # via pyproject.toml
+    pip install -r requirements.txt  # via requirements.txt
 
 Usage:
-    python agent.py
-    # or
-    from term_sdk import run
-    run(SuperAgent())
+    python agent.py --instruction "Your task description here..."
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 import time
+import os
+import subprocess
 from pathlib import Path
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from term_sdk import Agent, AgentContext, LLM, LLMError, CostLimitExceeded, run
+# Auto-install dependencies if missing
+def ensure_dependencies():
+    """Install dependencies if not present."""
+    try:
+        import litellm
+        import httpx
+        import pydantic
+    except ImportError:
+        print("[setup] Installing dependencies...", file=sys.stderr)
+        agent_dir = Path(__file__).parent
+        req_file = agent_dir / "requirements.txt"
+        if req_file.exists():
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(req_file), "-q"], check=True)
+        else:
+            subprocess.run([sys.executable, "-m", "pip", "install", str(agent_dir), "-q"], check=True)
+        print("[setup] Dependencies installed", file=sys.stderr)
+
+ensure_dependencies()
 
 from src.config.defaults import CONFIG
 from src.core.loop import run_agent_loop
 from src.tools.registry import ToolRegistry
 from src.output.jsonl import emit, ErrorEvent
+from src.llm.client import LiteLLMClient, CostLimitExceeded
 
 
-class SuperAgent(Agent):
-    """
-    Main agent class for Term Challenge benchmark.
+class AgentContext:
+    """Minimal context for agent execution (replaces term_sdk.AgentContext)."""
     
-    Simulates Codex exec with:
-    - Model: gpt-5.2
-    - Reasoning effort: xhigh
-    - All safety bypasses enabled
-    - JSONL output format
-    """
-    
-    def setup(self):
-        """Initialize LLM client and tools (called once at startup)."""
-        self.llm = LLM(
-            provider=CONFIG.get("provider", "openrouter"),
-            default_model=CONFIG["model"],
-            temperature=CONFIG.get("temperature"),
-            max_tokens=CONFIG["max_tokens"],
-        )
-        
-        self.tools = ToolRegistry()
+    def __init__(self, instruction: str, cwd: str = None):
+        self.instruction = instruction
+        self.cwd = cwd or os.getcwd()
+        self.step = 0
+        self.is_done = False
+        self.history = []
         self._start_time = time.time()
-        
-        self._log(f"SuperAgent initialized")
-        self._log(f"Model: {CONFIG['model']}")
-        self._log(f"Reasoning effort: {CONFIG['reasoning_effort']}")
     
-    def run(self, ctx: AgentContext):
-        """
-        Execute the task (called for each task).
-        
-        The instruction comes from ctx.instruction - no CLI arguments needed.
-        """
-        self._log(f"Task received: {ctx.instruction[:100]}...")
-        
+    @property
+    def elapsed_secs(self) -> float:
+        return time.time() - self._start_time
+    
+    def shell(self, cmd: str, timeout: int = 120) -> "ShellResult":
+        """Execute a shell command."""
+        self.step += 1
         try:
-            run_agent_loop(
-                llm=self.llm,
-                tools=self.tools,
-                ctx=ctx,
-                config=CONFIG,
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=self.cwd,
             )
-        except CostLimitExceeded as e:
-            self._log(f"Cost limit exceeded: ${e.used:.4f} / ${e.limit:.4f}")
-            emit(ErrorEvent(message=f"Cost limit exceeded: {e}"))
-            ctx.done()
+            output = result.stdout + result.stderr
+            exit_code = result.returncode
+        except subprocess.TimeoutExpired:
+            output = "[TIMEOUT]"
+            exit_code = -1
         except Exception as e:
-            self._log(f"Fatal error: {e}")
-            emit(ErrorEvent(message=str(e)))
-            ctx.done()
-            raise
-    
-    def cleanup(self):
-        """Print stats and cleanup (called at shutdown)."""
-        elapsed = time.time() - self._start_time
+            output = f"[ERROR] {e}"
+            exit_code = -1
         
-        try:
-            stats = self.llm.get_stats()
-            self._log(f"Total tokens: {stats.get('total_tokens', 0)}")
-            self._log(f"Total cost: ${stats.get('total_cost', 0):.4f}")
-            self._log(f"Requests: {stats.get('request_count', 0)}")
-            self._log(f"Elapsed: {elapsed:.1f}s")
-        except Exception as e:
-            self._log(f"Stats error: {e}")
-        
-        try:
-            self.llm.close()
-        except Exception:
-            pass
+        shell_result = ShellResult(output=output, exit_code=exit_code)
+        self.history.append({
+            "step": self.step,
+            "command": cmd,
+            "output": output[:1000],
+            "exit_code": exit_code,
+        })
+        return shell_result
     
-    def _log(self, msg: str):
-        """Log to stderr (not mixed with JSONL on stdout)."""
+    def done(self):
+        """Mark task as complete."""
+        self.is_done = True
+    
+    def log(self, msg: str):
+        """Log a message."""
         timestamp = time.strftime("%H:%M:%S")
-        print(f"[{timestamp}] [superagent] {msg}", file=sys.stderr, flush=True)
+        print(f"[{timestamp}] [ctx] {msg}", file=sys.stderr, flush=True)
+
+
+class ShellResult:
+    """Result from shell command."""
+    
+    def __init__(self, output: str, exit_code: int):
+        self.output = output
+        self.stdout = output
+        self.stderr = ""
+        self.exit_code = exit_code
+    
+    def has(self, text: str) -> bool:
+        return text in self.output
+
+
+def _log(msg: str):
+    """Log to stderr."""
+    timestamp = time.strftime("%H:%M:%S")
+    print(f"[{timestamp}] [superagent] {msg}", file=sys.stderr, flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="SuperAgent for Term Challenge SDK 3.0")
+    parser.add_argument("--instruction", required=True, help="Task instruction from validator")
+    args = parser.parse_args()
+    
+    _log("=" * 60)
+    _log("SuperAgent Starting (SDK 3.0 - litellm)")
+    _log("=" * 60)
+    _log(f"Model: {CONFIG['model']}")
+    _log(f"Reasoning effort: {CONFIG.get('reasoning_effort', 'default')}")
+    _log(f"Instruction: {args.instruction[:200]}...")
+    _log("-" * 60)
+    
+    # Initialize components
+    start_time = time.time()
+    
+    llm = LiteLLMClient(
+        model=CONFIG["model"],
+        temperature=CONFIG.get("temperature"),
+        max_tokens=CONFIG.get("max_tokens", 16384),
+    )
+    
+    tools = ToolRegistry()
+    ctx = AgentContext(instruction=args.instruction)
+    
+    _log("Components initialized")
+    
+    try:
+        run_agent_loop(
+            llm=llm,
+            tools=tools,
+            ctx=ctx,
+            config=CONFIG,
+        )
+    except CostLimitExceeded as e:
+        _log(f"Cost limit exceeded: {e}")
+        emit(ErrorEvent(message=f"Cost limit exceeded: {e}"))
+    except Exception as e:
+        _log(f"Fatal error: {e}")
+        emit(ErrorEvent(message=str(e)))
+        raise
+    finally:
+        elapsed = time.time() - start_time
+        try:
+            stats = llm.get_stats()
+            _log(f"Total tokens: {stats.get('total_tokens', 0)}")
+            _log(f"Total cost: ${stats.get('total_cost', 0):.4f}")
+            _log(f"Requests: {stats.get('request_count', 0)}")
+        except Exception as e:
+            _log(f"Stats error: {e}")
+        _log(f"Elapsed: {elapsed:.1f}s")
+        _log("Agent finished")
+        _log("=" * 60)
 
 
 if __name__ == "__main__":
-    run(SuperAgent())
+    main()

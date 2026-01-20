@@ -16,7 +16,7 @@ import time
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from term_sdk import LLM
+    from src.llm.client import LiteLLMClient
 
 # =============================================================================
 # Constants (matching OpenCode)
@@ -217,7 +217,7 @@ def prune_old_tool_outputs(
 # =============================================================================
 
 def run_compaction(
-    llm: "LLM",
+    llm: "LiteLLMClient",
     messages: List[Dict[str, Any]],
     system_prompt: str,
     model: Optional[str] = None,
@@ -289,7 +289,7 @@ def run_compaction(
 def manage_context(
     messages: List[Dict[str, Any]],
     system_prompt: str,
-    llm: "LLM",
+    llm: "LiteLLMClient",
     force_compaction: bool = False,
 ) -> List[Dict[str, Any]]:
     """
