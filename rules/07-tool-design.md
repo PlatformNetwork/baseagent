@@ -241,7 +241,7 @@ Tool(
 
 ```python
 class ToolHandler:
-    def __init__(self, ctx: AgentContext):
+    def __init__(self, ctx: Any):
         self.ctx = ctx
     
     def execute_command(self, command: str, timeout: int = 30, working_directory: str = ".") -> str:
@@ -250,7 +250,7 @@ class ToolHandler:
         timeout = min(max(timeout, 1), 300)  # Clamp 1-300
         
         # Execute
-        result = self.ctx.shell(command, timeout=timeout, cwd=working_directory)
+        result = self.shell(command, timeout=timeout, cwd=working_directory)
         
         # Format output
         output = result.output[-10000:]  # Truncate
@@ -263,7 +263,7 @@ class ToolHandler:
     
     def read_file(self, path: str, max_lines: int = -1, offset: int = 0) -> str:
         """Read a file."""
-        result = self.ctx.read(path)
+        result = self.read_file(path)
         
         if result.failed:
             return f"ERROR: {result.stderr}"
@@ -290,9 +290,9 @@ class ToolHandler:
         import os
         parent = os.path.dirname(path)
         if parent:
-            self.ctx.shell(f"mkdir -p '{parent}'")
+            self.shell(f"mkdir -p '{parent}'")
         
-        result = self.ctx.write(path, content)
+        result = self.write_file(path, content)
         
         if result.ok:
             return f"Successfully wrote {len(content)} bytes to {path}"
@@ -340,7 +340,7 @@ def execute_command(self, command: str, timeout: int = 30) -> str:
         return "ERROR: Potentially dangerous command blocked"
     
     # Execute
-    result = self.ctx.shell(command, timeout=timeout)
+    result = self.shell(command, timeout=timeout)
     
     # Format response
     return self._format_result(result)
@@ -350,13 +350,13 @@ def execute_command(self, command: str, timeout: int = 30) -> str:
 
 ```python
 class StatefulToolHandler:
-    def __init__(self, ctx: AgentContext):
+    def __init__(self, ctx: Any):
         self.ctx = ctx
         self.command_history = []
         self.files_created = []
     
     def execute_command(self, command: str, **kwargs) -> str:
-        result = self.ctx.shell(command, **kwargs)
+        result = self.shell(command, **kwargs)
         
         # Track history
         self.command_history.append({
@@ -368,7 +368,7 @@ class StatefulToolHandler:
         return self._format_result(result)
     
     def write_file(self, path: str, content: str) -> str:
-        result = self.ctx.write(path, content)
+        result = self.write_file(path, content)
         
         if result.ok:
             self.files_created.append(path)
@@ -413,7 +413,7 @@ def edit_file(self, path: str, old_text: str, new_text: str) -> str:
     """Edit a file by replacing text."""
     
     # Read current content
-    read_result = self.ctx.read(path)
+    read_result = self.read_file(path)
     if read_result.failed:
         return f"ERROR: Could not read file: {read_result.stderr}"
     
@@ -432,7 +432,7 @@ def edit_file(self, path: str, old_text: str, new_text: str) -> str:
     new_content = content.replace(old_text, new_text, 1)
     
     # Write back
-    write_result = self.ctx.write(path, new_content)
+    write_result = self.write_file(path, new_content)
     if write_result.failed:
         return f"ERROR: Could not write file: {write_result.stderr}"
     
@@ -473,7 +473,7 @@ class ToolResponse:
 
 ```python
 def read_file(self, path: str) -> str:
-    result = self.ctx.read(path)
+    result = self.read_file(path)
     
     if result.failed:
         return ToolResponse.error(f"Could not read {path}", result.stderr)
@@ -497,7 +497,7 @@ def read_file(self, path: str) -> str:
 ```python
 # BAD
 def execute_command(self, command: str) -> str:
-    return self.ctx.shell(command).output
+    return self.shell(command).output
 
 # GOOD
 def execute_command(self, command: str) -> str:
@@ -508,7 +508,7 @@ def execute_command(self, command: str) -> str:
     if not command:
         return "ERROR: Empty command"
     
-    return self.ctx.shell(command).output
+    return self.shell(command).output
 ```
 
 ### Mistake 2: Unbounded Output
@@ -516,11 +516,11 @@ def execute_command(self, command: str) -> str:
 ```python
 # BAD
 def read_file(self, path: str) -> str:
-    return self.ctx.read(path).stdout  # Could be huge!
+    return self.read_file(path).stdout  # Could be huge!
 
 # GOOD
 def read_file(self, path: str) -> str:
-    content = self.ctx.read(path).stdout
+    content = self.read_file(path).stdout
     if len(content) > 50000:
         return content[:50000] + "\n[truncated]"
     return content
@@ -531,12 +531,12 @@ def read_file(self, path: str) -> str:
 ```python
 # BAD
 def write_file(self, path: str, content: str) -> str:
-    self.ctx.write(path, content)
+    self.write_file(path, content)
     return "Done"
 
 # GOOD
 def write_file(self, path: str, content: str) -> str:
-    result = self.ctx.write(path, content)
+    result = self.write_file(path, content)
     if result.failed:
         return f"ERROR: {result.stderr}"
     return f"Wrote {len(content)} bytes to {path}"

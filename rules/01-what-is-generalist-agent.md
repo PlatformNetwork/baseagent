@@ -18,7 +18,7 @@ In contrast, a **hardcoded agent** uses pattern matching, task-specific handlers
 
 ```python
 class GeneralistAgent(Agent):
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         # Same code path for EVERY task
         context = self.explore(ctx)
         
@@ -38,14 +38,14 @@ class GeneralistAgent(Agent):
             if response.task_complete:
                 break
         
-        ctx.done()
+        # Task complete
 ```
 
 ### Hardcoded Agent (WRONG)
 
 ```python
 class HardcodedAgent(Agent):
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         instruction = ctx.instruction.lower()
         
         # WRONG: Task-specific routing
@@ -58,7 +58,7 @@ class HardcodedAgent(Agent):
         else:
             self.handle_generic(ctx)
         
-        ctx.done()
+        # Task complete
 ```
 
 ---
@@ -149,9 +149,9 @@ The Terminus-2 agent demonstrates generalist design:
 
 ```python
 class Terminus2Agent(Agent):
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         # Build initial context (same for ALL tasks)
-        terminal_state = ctx.shell("pwd && ls -la").output
+        terminal_state = shell("pwd && ls -la").output
         
         self.history = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -170,7 +170,7 @@ class Terminus2Agent(Agent):
             output = self.execute_commands(ctx, result.commands)
             self.history.append({"role": "user", "content": output})
         
-        ctx.done()
+        # Task complete
 ```
 
 Key observations:

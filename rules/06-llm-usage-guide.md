@@ -189,14 +189,14 @@ class ResponseParser:
 ### Using the Parser
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     parser = ResponseParser()
     
     response = self.llm.chat(messages)
     data = parser.parse(response.text)
     
     if not data:
-        ctx.log("Failed to parse response, asking for retry")
+        print("Failed to parse response, asking for retry")
         messages.append({"role": "assistant", "content": response.text})
         messages.append({"role": "user", "content": "Invalid JSON. Please respond with valid JSON only."})
         continue
@@ -223,22 +223,22 @@ def call_llm_safe(self, messages: list, max_retries: int = 3) -> Response | None
         
         except CostLimitExceeded as e:
             # Fatal - can't continue
-            self.ctx.log(f"Cost limit exceeded: ${e.used:.2f}/${e.limit:.2f}")
+            self.print(f"Cost limit exceeded: ${e.used:.2f}/${e.limit:.2f}")
             return None
         
         except LLMError as e:
-            self.ctx.log(f"LLM error ({e.code}): {e.message}")
+            self.print(f"LLM error ({e.code}): {e.message}")
             
             if e.code == "rate_limit":
                 # Wait and retry
                 wait_time = 30 * (attempt + 1)
-                self.ctx.log(f"Rate limited, waiting {wait_time}s...")
+                self.print(f"Rate limited, waiting {wait_time}s...")
                 time.sleep(wait_time)
                 continue
             
             elif e.code == "context_length":
                 # Reduce context and retry
-                self.ctx.log("Context too long, truncating...")
+                self.print("Context too long, truncating...")
                 messages = self._truncate_messages(messages)
                 continue
             
@@ -271,7 +271,7 @@ def get_valid_response(self, ctx, messages: list, max_attempts: int = 3) -> dict
             return data
         
         # Ask for valid JSON
-        ctx.log(f"Parse failed (attempt {attempt + 1})")
+        print(f"Parse failed (attempt {attempt + 1})")
         messages.append({"role": "assistant", "content": response.text})
         messages.append({
             "role": "user",
@@ -316,7 +316,7 @@ class ContextManager:
 ### Sliding Window
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Keep only last N exchanges
     MAX_HISTORY = 10
     
@@ -417,12 +417,12 @@ TOOLS = [
 
 ```python
 class ToolHandler:
-    def __init__(self, ctx: AgentContext):
+    def __init__(self, ctx: Any):
         self.ctx = ctx
         self.completed = False
     
     def execute_command(self, command: str, timeout: int = 30) -> str:
-        result = self.ctx.shell(command, timeout=timeout)
+        result = self.shell(command, timeout=timeout)
         output = result.output[-5000:]  # Truncate
         
         if result.timed_out:
@@ -432,13 +432,13 @@ class ToolHandler:
         return f"[{status}]\n{output}"
     
     def read_file(self, path: str) -> str:
-        result = self.ctx.read(path)
+        result = self.read_file(path)
         if result.ok:
             return result.stdout[:10000]  # Truncate
         return f"Error reading file: {result.stderr}"
     
     def write_file(self, path: str, content: str) -> str:
-        result = self.ctx.write(path, content)
+        result = self.write_file(path, content)
         if result.ok:
             return f"Successfully wrote {len(content)} bytes to {path}"
         return f"Error writing file: {result.stderr}"
@@ -451,7 +451,7 @@ class ToolHandler:
 ### Using Function Calling
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     handler = ToolHandler(ctx)
     
     # Register handlers
@@ -473,7 +473,7 @@ def run(self, ctx: AgentContext):
     )
     
     if handler.completed:
-        ctx.done()
+        # Task complete
 ```
 
 ---
@@ -522,7 +522,7 @@ def setup(self):
     # Fast model for simple operations
     self.fast_model = "anthropic/claude-3-haiku"
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Use strong model for planning
     plan = self.llm.ask(
         f"Task: {ctx.instruction}\nCreate a plan.",
@@ -658,7 +658,7 @@ response = self.llm.chat(messages, usage=True)
 if response.usage:
     cached_tokens = response.usage.get("cached_tokens", 0)
     cache_discount = response.usage.get("cache_discount", 0)
-    ctx.log(f"Cached: {cached_tokens} tokens, saved: ${cache_discount:.4f}")
+    print(f"Cached: {cached_tokens} tokens, saved: ${cache_discount:.4f}")
 ```
 
 ### Cost Optimization Tips

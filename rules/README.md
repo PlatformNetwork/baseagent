@@ -31,7 +31,7 @@ These are the fundamental principles that separate successful generalist agents 
 
 ```
 WRONG: if "create file" in task: run_file_creation()
-RIGHT: response = llm.ask(f"Task: {task}\nWhat commands should I run?")
+RIGHT: response = llm.chat([{"role": "user", "content": f"Task: {task}\nWhat commands should I run?"}])
 ```
 
 The LLM must analyze each task independently. No shortcuts, no pattern matching on instructions.
@@ -48,16 +48,24 @@ Your agent should have **zero knowledge** of specific tasks. It should not conta
 Always gather context before executing:
 
 ```python
+import subprocess
+
+def shell(cmd, cwd=None, timeout=60):
+    """Execute shell command using subprocess."""
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd, timeout=timeout)
+    return result.stdout + result.stderr
+
 # 1. EXPLORE
-ctx.shell("pwd && ls -la")
-ctx.shell("cat README.md 2>/dev/null")
+context = shell("pwd && ls -la")
+readme = shell("cat README.md 2>/dev/null")
 
 # 2. PLAN (via LLM)
-plan = llm.ask(f"Given this environment:\n{context}\n\nTask: {task}")
+messages = [{"role": "user", "content": f"Environment:\n{context}\n\nTask: {task}"}]
+response = llm.chat(messages)
 
 # 3. EXECUTE
-for command in plan.commands:
-    ctx.shell(command)
+for command in parse_commands(response.text):
+    shell(command)
 ```
 
 ### Rule 4: Verify Every Output
@@ -66,38 +74,47 @@ Before marking a task complete:
 
 ```python
 # Verify output file exists
-result = ctx.shell(f"ls -la {output_path}")
-if result.failed:
+result = shell(f"ls -la {output_path}")
+if "No such file" in result:
     # File doesn't exist - don't mark complete!
     continue_working()
 
 # Verify content is correct
-content = ctx.read(output_path)
+content = shell(f"cat {output_path}")
 # Let LLM verify if content meets requirements
 ```
 
-### Rule 5: Always Call `ctx.done()`
+### Rule 5: Always Signal Completion
 
-Every execution path must end with `ctx.done()`. This signals task completion to the evaluation system:
+Every execution path must signal completion. The agent entry point receives `--instruction` and must complete:
 
 ```python
-def run(self, ctx: AgentContext):
+import argparse
+import subprocess
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--instruction", required=True)
+    args = parser.parse_args()
+    
     try:
         # ... task execution ...
         
         if task_successful:
-            ctx.log("Task completed successfully")
-            ctx.done()  # REQUIRED!
+            print("[DONE] Task completed successfully")
         else:
-            ctx.log("Task failed, but still marking done")
-            ctx.done()  # Even on failure!
+            print("[DONE] Task failed")
             
     except Exception as e:
-        ctx.log(f"Error: {e}")
-        ctx.done()  # Always call done!
+        print(f"[ERROR] {e}")
+    
+    # Agent exits naturally - no special done() call needed
+
+if __name__ == "__main__":
+    main()
 ```
 
-**Warning**: Agents that don't call `ctx.done()` will timeout and receive zero score.
+**Warning**: Agents that run indefinitely will timeout and receive zero score.
 
 ---
 
@@ -105,11 +122,11 @@ def run(self, ctx: AgentContext):
 
 | Failure | Cause | Prevention |
 |---------|-------|------------|
-| Missing `ctx.done()` | Forgot to call done | Always call `ctx.done()` on ALL paths |
-| Missing output file | Wrong path or not created | Use absolute paths, verify with `ls -la` |
 | Infinite loop | No exit condition | Set max iterations, always have escape |
+| Missing output file | Wrong path or not created | Use absolute paths, verify with `ls -la` |
 | Constraint violation | Didn't read constraints | Parse constraints FIRST |
 | Timeout | Task takes too long | Monitor time, prioritize critical steps |
+| Context overflow | Too much history | Implement compaction (MANDATORY) |
 
 ---
 
@@ -126,11 +143,11 @@ def run(self, ctx: AgentContext):
 
 ```mermaid
 flowchart LR
-    A[RECEIVE<br/>TASK] --> B[EXPLORE<br/>CONTEXT]
+    A[RECEIVE<br/>--instruction] --> B[EXPLORE<br/>CONTEXT]
     B --> C[LLM<br/>REASON]
-    C --> D[EXECUTE<br/>COMMANDS]
+    C --> D[EXECUTE<br/>subprocess]
     D --> E{VERIFY}
-    E -->|Success| F[DONE]
+    E -->|Success| F[EXIT]
     E -->|Iterate| B
 ```
 
@@ -148,6 +165,6 @@ flowchart LR
 
 ## Document Version
 
-- **Version**: 1.0
+- **Version**: 2.0 (SDK 3.0 Compatible)
 - **Last Updated**: January 2025
 - **Target**: Subnet 100 / Terminal Bench v2.0

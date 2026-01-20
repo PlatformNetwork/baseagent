@@ -37,13 +37,13 @@ def test_basic():
 
 def test_simple_task():
     """Test a simple task."""
-    # AgentContext est duck-typed (a shell(), cwd, instruction, done())
+    # Any est duck-typed (a shell(), cwd, instruction, done())
     
     agent = MyAgent()
     agent.setup()
     
     # Create mock context
-    ctx = AgentContext(instruction="List all files in the current directory")
+    ctx = Any(instruction="List all files in the current directory")
     
     # Run agent
     agent.run(ctx)
@@ -277,7 +277,7 @@ def debug_log(msg: str):
         print(f"[DEBUG] {msg}", flush=True)
 
 class MyAgent(Agent):
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         debug_log(f"Starting task: {ctx.instruction}")
         
         # ... agent logic ...
@@ -354,7 +354,7 @@ python -c "from my_agent import MyAgent; a = MyAgent(); a.setup(); a.cleanup()"
 # (Create a task with minimal instruction)
 
 # Does it terminate?
-# (Ensure ctx.done() is always called)
+# (Ensure # Task complete is always called)
 ```
 
 ### 2. Error Handling
@@ -367,7 +367,7 @@ def test_error_handling():
     agent.setup()
     
     # Test invalid command
-    ctx = AgentContext(instruction="Run the command: nonexistent_command_xyz")
+    ctx = Any(instruction="Run the command: nonexistent_command_xyz")
     agent.run(ctx)
     assert ctx.is_done, "Agent should complete even with errors"
     
@@ -384,7 +384,7 @@ def test_long_task():
     agent.setup()
     
     # Task that generates lots of output
-    ctx = AgentContext(instruction="List all files recursively and show their contents")
+    ctx = Any(instruction="List all files recursively and show their contents")
     agent.run(ctx)
     
     assert ctx.is_done
@@ -407,7 +407,7 @@ def test_output_files():
         agent = MyAgent()
         agent.setup()
         
-        ctx = AgentContext(instruction="Create a file named result.txt with content 'success'")
+        ctx = Any(instruction="Create a file named result.txt with content 'success'")
         agent.run(ctx)
         
         assert os.path.exists("result.txt"), "Output file should exist"
@@ -444,7 +444,7 @@ def test_simple_task(agent, tmp_path):
     import os
     os.chdir(tmp_path)
     
-    ctx = AgentContext(instruction="Create hello.txt")
+    ctx = Any(instruction="Create hello.txt")
     agent.run(ctx)
     
     assert ctx.is_done
@@ -459,7 +459,7 @@ def test_various_tasks(agent, tmp_path, instruction):
     import os
     os.chdir(tmp_path)
     
-    ctx = AgentContext(instruction=instruction)
+    ctx = Any(instruction=instruction)
     agent.run(ctx)
     
     assert ctx.is_done
@@ -496,7 +496,7 @@ pytest tests/ --cov=my_agent
 ### Functionality
 - [ ] Completes simple tasks
 - [ ] Handles errors gracefully
-- [ ] Always calls ctx.done()
+- [ ] Always calls # Task complete
 - [ ] Manages context size
 
 ### Performance

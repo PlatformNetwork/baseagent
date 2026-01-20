@@ -50,7 +50,7 @@ import time
 from src.llm.client import LiteLLMClient, LLMError, CostLimitExceeded
 
 class RobustLLMClient:
-    def __init__(self, ctx: AgentContext):
+    def __init__(self, ctx: Any):
         self.ctx = ctx
         self.llm = LLM(default_model="anthropic/claude-3.5-sonnet")
         self.max_retries = 3
@@ -64,23 +64,23 @@ class RobustLLMClient:
                 return self.llm.chat(messages)
             
             except CostLimitExceeded as e:
-                self.ctx.log(f"FATAL: Cost limit exceeded (${e.used:.2f}/${e.limit:.2f})")
+                self.print(f"FATAL: Cost limit exceeded (${e.used:.2f}/${e.limit:.2f})")
                 return None  # Can't recover
             
             except LLMError as e:
-                self.ctx.log(f"LLM error (attempt {attempt + 1}): {e.code} - {e.message}")
+                self.print(f"LLM error (attempt {attempt + 1}): {e.code} - {e.message}")
                 
                 if not self._should_retry(e, attempt):
                     return None
                 
                 delay = self._get_delay(e, attempt)
-                self.ctx.log(f"Retrying in {delay}s...")
+                self.print(f"Retrying in {delay}s...")
                 time.sleep(delay)
                 
                 # Apply recovery action
                 messages = self._apply_recovery(e, messages)
         
-        self.ctx.log("Max retries exceeded")
+        self.print("Max retries exceeded")
         return None
     
     def _should_retry(self, error: LLMError, attempt: int) -> bool:
@@ -127,7 +127,7 @@ class RobustLLMClient:
 
 ```python
 class CommandExecutor:
-    def __init__(self, ctx: AgentContext, llm: RobustLLMClient):
+    def __init__(self, ctx: Any, llm: RobustLLMClient):
         self.ctx = ctx
         self.llm = llm
     
@@ -141,12 +141,12 @@ class CommandExecutor:
         """Execute command with error recovery."""
         
         for attempt in range(max_retries + 1):
-            result = self.ctx.shell(command, timeout=timeout)
+            result = self.shell(command, timeout=timeout)
             
             if result.ok:
                 return result
             
-            self.ctx.log(f"Command failed (attempt {attempt + 1}): exit {result.exit_code}")
+            self.print(f"Command failed (attempt {attempt + 1}): exit {result.exit_code}")
             
             # Check for recoverable errors
             recovery = self._try_recovery(result, attempt, allow_llm_recovery)
@@ -213,7 +213,7 @@ class CommandExecutor:
         ]
         
         for installer in installers:
-            result = self.ctx.shell(installer, timeout=60)
+            result = self.shell(installer, timeout=60)
             if result.ok:
                 return result
         
@@ -250,7 +250,7 @@ Respond with JSON: {{"recovery_command": "..."}} or {{"no_recovery": true}}"""}
 
 ```python
 class ResponseParser:
-    def __init__(self, ctx: AgentContext, llm: RobustLLMClient):
+    def __init__(self, ctx: Any, llm: RobustLLMClient):
         self.ctx = ctx
         self.llm = llm
     
@@ -265,7 +265,7 @@ class ResponseParser:
             if required_fields:
                 missing = [f for f in required_fields if f not in data]
                 if missing:
-                    self.ctx.log(f"Missing required fields: {missing}")
+                    self.print(f"Missing required fields: {missing}")
                     return None
             return data
         
@@ -345,7 +345,7 @@ class ResponseParser:
                 return data, messages
             
             # Ask for valid JSON
-            self.ctx.log(f"Parse failed (attempt {attempt + 1}), requesting valid JSON")
+            self.print(f"Parse failed (attempt {attempt + 1}), requesting valid JSON")
             
             messages.append({"role": "assistant", "content": response.text})
             messages.append({
@@ -364,21 +364,21 @@ class ResponseParser:
 
 ```python
 class FallbackExecutor:
-    def __init__(self, ctx: AgentContext):
+    def __init__(self, ctx: Any):
         self.ctx = ctx
     
     def execute_with_fallbacks(self, primary: str, fallbacks: list[str]) -> ShellResult:
         """Try primary command, then fallbacks if it fails."""
         
-        result = self.ctx.shell(primary)
+        result = self.shell(primary)
         if result.ok:
             return result
         
-        self.ctx.log(f"Primary command failed, trying fallbacks")
+        self.print(f"Primary command failed, trying fallbacks")
         
         for i, fallback in enumerate(fallbacks):
-            self.ctx.log(f"Trying fallback {i + 1}: {fallback[:50]}...")
-            result = self.ctx.shell(fallback)
+            self.print(f"Trying fallback {i + 1}: {fallback[:50]}...")
+            result = self.shell(fallback)
             if result.ok:
                 return result
         
@@ -388,7 +388,7 @@ class FallbackExecutor:
         """Find an available tool from alternatives."""
         
         for tool in [tool_name] + alternatives:
-            result = self.ctx.shell(f"which {tool}")
+            result = self.shell(f"which {tool}")
             if result.ok:
                 return tool
         
@@ -400,7 +400,7 @@ executor = FallbackExecutor(ctx)
 # Try python3, then python, then python2
 python = executor.find_tool("python3", ["python", "python2"])
 if python:
-    ctx.shell(f"{python} script.py")
+    shell(f"{python} script.py")
 
 # Try primary approach with fallbacks
 result = executor.execute_with_fallbacks(
@@ -417,7 +417,7 @@ result = executor.execute_with_fallbacks(
 
 ```python
 class ErrorLogger:
-    def __init__(self, ctx: AgentContext):
+    def __init__(self, ctx: Any):
         self.ctx = ctx
         self.errors = []
     
@@ -432,11 +432,11 @@ class ErrorLogger:
         }
         
         self.errors.append(error)
-        self.ctx.log(f"[{category}] {message}")
+        self.print(f"[{category}] {message}")
         
         if details:
             for key, value in details.items():
-                self.ctx.log(f"  {key}: {str(value)[:200]}")
+                self.print(f"  {key}: {str(value)[:200]}")
     
     def get_summary(self) -> str:
         """Get error summary for debugging."""
@@ -468,7 +468,7 @@ class ResilientAgent(Agent):
         self.parser = ResponseParser(self.ctx, self.llm_client)
         self.errors = ErrorLogger(self.ctx)
     
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         self.ctx = ctx
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -477,7 +477,7 @@ class ResilientAgent(Agent):
         
         max_iterations = 50
         for iteration in range(max_iterations):
-            ctx.log(f"Iteration {iteration + 1}")
+            print(f"Iteration {iteration + 1}")
             
             # Get LLM response with retry
             data, messages = self.parser.parse_with_retry(
@@ -490,7 +490,7 @@ class ResilientAgent(Agent):
                 continue
             
             if data.get("task_complete"):
-                ctx.log("Task complete")
+                print("Task complete")
                 break
             
             # Execute commands with recovery
@@ -513,8 +513,8 @@ class ResilientAgent(Agent):
                     "content": f"Output:\n{result.output[-3000:]}"
                 })
         
-        ctx.log(self.errors.get_summary())
-        ctx.done()
+        print(self.errors.get_summary())
+        # Task complete
 ```
 
 ---

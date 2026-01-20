@@ -13,10 +13,10 @@ This document catalogs **anti-patterns** - things you must NOT do when building 
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     if "hello" in ctx.instruction.lower():
-        ctx.shell('echo "Hello, World!" > hello.txt')
-        ctx.done()
+        shell('echo "Hello, World!" > hello.txt')
+        # Task complete
         return
 ```
 
@@ -25,12 +25,12 @@ def run(self, ctx: AgentContext):
 **Correct approach:**
 ```python
 # RIGHT
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     response = self.llm.ask(f"Task: {ctx.instruction}\nWhat commands should I run?")
     commands = self.parse_commands(response.text)
     for cmd in commands:
-        ctx.shell(cmd)
-    ctx.done()
+        shell(cmd)
+    # Task complete
 ```
 
 ---
@@ -39,7 +39,7 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     task = ctx.instruction.lower()
     
     if "create" in task and "file" in task:
@@ -124,7 +124,7 @@ class Agent:
             "compile": self.handle_compile_task,
         }
     
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         for keyword, handler in self.handlers.items():
             if keyword in ctx.instruction.lower():
                 handler(ctx)
@@ -146,11 +146,11 @@ KNOWN_TASKS = {
     hash("show current directory"): "pwd",
 }
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     task_hash = hash(ctx.instruction.lower().strip())
     if task_hash in KNOWN_TASKS:
-        ctx.shell(KNOWN_TASKS[task_hash])
-        ctx.done()
+        shell(KNOWN_TASKS[task_hash])
+        # Task complete
         return
 ```
 
@@ -162,7 +162,7 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     instruction = ctx.instruction.lower()
     
     if instruction.startswith("write"):
@@ -188,7 +188,7 @@ def extract_action_keywords(instruction: str) -> set:
     words = set(instruction.lower().split())
     return words & actions
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     keywords = extract_action_keywords(ctx.instruction)
     
     if "create" in keywords:
@@ -242,7 +242,7 @@ from transformers import pipeline
 classifier = pipeline("zero-shot-classification")
 TASK_LABELS = ["file operation", "git operation", "compilation", "testing", "debugging"]
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     result = classifier(ctx.instruction, TASK_LABELS)
     task_type = result["labels"][0]
     
@@ -263,12 +263,12 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Hardcoded sequence without LLM
-    ctx.shell("git add .")
-    ctx.shell("git commit -m 'Update'")
-    ctx.shell("git push")
-    ctx.done()
+    shell("git add .")
+    shell("git commit -m 'Update'")
+    shell("git push")
+    # Task complete
 ```
 
 **Why it's wrong:** Commands are hardcoded, not from LLM reasoning.
@@ -317,11 +317,11 @@ class SolutionCache:
         row = cursor.fetchone()
         return row[0] if row else None
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     cached = self.cache.lookup(ctx.instruction)
     if cached:
         exec(cached)  # Execute cached solution
-        ctx.done()
+        # Task complete
         return
 ```
 
@@ -335,13 +335,13 @@ def run(self, ctx: AgentContext):
 # WRONG
 RESPONSE_CACHE = {}
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     cache_key = ctx.instruction[:100]
     
     if cache_key in RESPONSE_CACHE:
         # Replay cached response instead of calling LLM
         self.execute_cached(ctx, RESPONSE_CACHE[cache_key])
-        ctx.done()
+        # Task complete
         return
     
     response = self.llm.ask(ctx.instruction)
@@ -363,11 +363,11 @@ KNOWN_FILES = {
     "config.json": '{"version": "1.0"}',
 }
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     for filename, content in KNOWN_FILES.items():
         if filename in ctx.instruction.lower():
-            ctx.write(f"/app/{filename}", content)
-            ctx.done()
+            write_file(f"/app/{filename}", content)
+            # Task complete
             return
 ```
 
@@ -393,10 +393,10 @@ COMMAND_SEQUENCES = {
     ],
 }
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     if "python" in ctx.instruction.lower():
         for cmd in COMMAND_SEQUENCES["python_project"]:
-            ctx.shell(cmd)
+            shell(cmd)
 ```
 
 **Why it's wrong:** Pre-defined command sequences by task type.
@@ -413,12 +413,12 @@ DEFAULT_RESPONSES = {
     "compilation_failed": "echo '// TODO: fix compilation' > fix.txt",
 }
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     try:
         self.attempt_task(ctx)
     except Exception as e:
         error_type = classify_error(e)
-        ctx.shell(DEFAULT_RESPONSES.get(error_type, "echo 'Error'"))
+        shell(DEFAULT_RESPONSES.get(error_type, "echo 'Error'"))
 ```
 
 **Why it's wrong:** Pre-defined fallback responses for error types.
@@ -438,7 +438,7 @@ OUTPUT_TEMPLATES = {
 def write_output(self, ctx, filename: str, **values):
     if filename in OUTPUT_TEMPLATES:
         content = OUTPUT_TEMPLATES[filename].format(**values)
-        ctx.write(f"/app/{filename}", content)
+        write_file(f"/app/{filename}", content)
 ```
 
 **Why it's wrong:** Pre-defined output format templates.
@@ -451,12 +451,12 @@ def write_output(self, ctx, filename: str, **values):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Trying to read test expectations
-    test_files = ctx.shell("find . -name 'test_*.py' -o -name '*_test.py'").stdout
+    test_files = shell("find . -name 'test_*.py' -o -name '*_test.py'").stdout
     
     for test_file in test_files.strip().split('\n'):
-        content = ctx.read(test_file)
+        content = read_file(test_file)
         expected = self.extract_assertions(content)
         self.use_expected_values(expected)
 ```
@@ -494,7 +494,7 @@ def extract_expected_values(test_content: str) -> list:
 # WRONG
 import os
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Detect if running in benchmark environment
     if os.environ.get("TERM_BENCH") or os.environ.get("BENCHMARK_MODE"):
         self.benchmark_optimized_mode(ctx)
@@ -510,8 +510,8 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
-    pwd = ctx.shell("pwd").stdout.strip()
+def run(self, ctx: Any):
+    pwd = shell("pwd").stdout.strip()
     
     # Detect task by workspace path
     if "polyglot" in pwd:
@@ -530,8 +530,8 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def detect_project_type(self, ctx: AgentContext) -> str:
-    files = ctx.shell("ls -la").stdout
+def detect_project_type(self, ctx: Any) -> str:
+    files = shell("ls -la").stdout
     
     # Detect project type by files present
     if "Cargo.toml" in files:
@@ -545,7 +545,7 @@ def detect_project_type(self, ctx: AgentContext) -> str:
     
     return "unknown"
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     project_type = self.detect_project_type(ctx)
     # Use project type to skip reasoning
     self.handlers[project_type](ctx)
@@ -563,7 +563,7 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     all_output = ""
     
     for i in range(100):
@@ -572,7 +572,7 @@ def run(self, ctx: AgentContext):
             {"role": "user", "content": f"Task: {ctx.instruction}\n\nAll output so far:\n{all_output}"}
         ])
         
-        result = ctx.shell(response.text)
+        result = shell(response.text)
         all_output += result.output  # Grows unboundedly!
 ```
 
@@ -581,7 +581,7 @@ def run(self, ctx: AgentContext):
 **Correct approach:**
 ```python
 # RIGHT
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     history = []
     
     for i in range(100):
@@ -593,7 +593,7 @@ def run(self, ctx: AgentContext):
             *recent_history
         ])
         
-        result = ctx.shell(response.text)
+        result = shell(response.text)
         # Truncate output
         history.append({"role": "user", "content": result.output[-3000:]})
 ```
@@ -604,7 +604,7 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Try to do everything in one prompt
     mega_prompt = f"""
     Task: {ctx.instruction}
@@ -632,13 +632,13 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     response = self.llm.ask(ctx.instruction)  # Might fail!
     
     data = response.json()  # Might be None!
     command = data["command"]  # Might KeyError!
     
-    ctx.shell(command)
+    shell(command)
 ```
 
 **Why it's wrong:** No error handling for LLM failures.
@@ -646,11 +646,11 @@ def run(self, ctx: AgentContext):
 **Correct approach:**
 ```python
 # RIGHT
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     try:
         response = self.llm.ask(ctx.instruction)
     except LLMError as e:
-        ctx.log(f"LLM error: {e}")
+        print(f"LLM error: {e}")
         if e.code in ("rate_limit", "server_error"):
             time.sleep(5)
             response = self.llm.ask(ctx.instruction)  # Retry
@@ -659,13 +659,13 @@ def run(self, ctx: AgentContext):
     
     data = response.json()
     if not data:
-        ctx.log("Failed to parse JSON, asking for clarification")
+        print("Failed to parse JSON, asking for clarification")
         response = self.llm.ask("Please respond with valid JSON")
         data = response.json()
     
     command = data.get("command")
     if command:
-        ctx.shell(command)
+        shell(command)
 ```
 
 ---
@@ -674,11 +674,11 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     response = self.llm.ask(ctx.instruction)
     
     if not response.text:
-        ctx.done()  # Just give up
+        # Task complete  # Just give up
         return
 ```
 
@@ -690,11 +690,11 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     response = self.llm.ask("Give me a shell command")
     
     # Execute whatever the LLM says without validation
-    ctx.shell(response.text)
+    shell(response.text)
 ```
 
 **Why it's wrong:** Doesn't validate LLM output before execution.
@@ -702,7 +702,7 @@ def run(self, ctx: AgentContext):
 **Correct approach:**
 ```python
 # RIGHT
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     response = self.llm.ask(
         "Give me a shell command as JSON: {\"command\": \"...\"}",
         system="Respond only with valid JSON."
@@ -710,16 +710,16 @@ def run(self, ctx: AgentContext):
     
     data = response.json()
     if not data:
-        ctx.log("Invalid response format")
+        print("Invalid response format")
         return
     
     command = data.get("command", "").strip()
     if not command:
-        ctx.log("No command provided")
+        print("No command provided")
         return
     
     # Now safe to execute
-    ctx.shell(command)
+    shell(command)
 ```
 
 ---
@@ -737,7 +737,7 @@ TASK_TIMEOUTS = {
     "simple": 10,
 }
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Determine timeout by task keywords
     timeout = 30  # default
     for keyword, t in TASK_TIMEOUTS.items():
@@ -745,7 +745,7 @@ def run(self, ctx: AgentContext):
             timeout = t
             break
     
-    ctx.shell(command, timeout=timeout)
+    shell(command, timeout=timeout)
 ```
 
 **Why it's wrong:** Timeouts are based on task keywords.
@@ -772,8 +772,8 @@ def verify_output(self, ctx, output: str) -> bool:
 
 ```python
 # WRONG
-def check_completion(self, ctx: AgentContext) -> bool:
-    file_count = len(ctx.shell("ls").stdout.split())
+def check_completion(self, ctx: Any) -> bool:
+    file_count = len(shell("ls").stdout.split())
     
     # Expect certain file counts
     if "cleanup" in ctx.instruction.lower():
@@ -790,13 +790,13 @@ def check_completion(self, ctx: AgentContext) -> bool:
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
-    result = ctx.shell("make")
+def run(self, ctx: Any):
+    result = shell("make")
     
     # Assume specific exit codes mean specific things
     if result.exit_code == 2:
         # "Must be missing Makefile, create one"
-        ctx.write("Makefile", DEFAULT_MAKEFILE)
+        write_file("Makefile", DEFAULT_MAKEFILE)
 ```
 
 **Why it's wrong:** Hardcoded interpretation of exit codes.
@@ -808,10 +808,10 @@ def run(self, ctx: AgentContext):
 ```python
 # WRONG
 ERROR_HANDLERS = {
-    r"No such file": lambda ctx: ctx.shell("touch missing_file"),
-    r"Permission denied": lambda ctx: ctx.shell("chmod +x script.sh"),
-    r"Module not found": lambda ctx: ctx.shell("pip install -r requirements.txt"),
-    r"ECONNREFUSED": lambda ctx: ctx.shell("sleep 5") and retry(),
+    r"No such file": lambda ctx: shell("touch missing_file"),
+    r"Permission denied": lambda ctx: shell("chmod +x script.sh"),
+    r"Module not found": lambda ctx: shell("pip install -r requirements.txt"),
+    r"ECONNREFUSED": lambda ctx: shell("sleep 5") and retry(),
 }
 
 def handle_error(self, ctx, error: str):
@@ -831,7 +831,7 @@ def handle_error(self, ctx, error: str):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Assume short instructions are simple
     if len(ctx.instruction) < 50:
         self.simple_mode(ctx)
@@ -847,7 +847,7 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Assume task types need certain step counts
     if "deploy" in ctx.instruction.lower():
         max_steps = 20  # Deployments are complex
@@ -865,8 +865,8 @@ def run(self, ctx: AgentContext):
 
 ```python
 # WRONG
-def run(self, ctx: AgentContext):
-    dirs = ctx.shell("ls -d */").stdout.split()
+def run(self, ctx: Any):
+    dirs = shell("ls -d */").stdout.split()
     
     # Detect task by directory names
     if "src" in dirs and "tests" in dirs:

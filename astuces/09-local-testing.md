@@ -26,7 +26,7 @@ term-challenge/
 │   └── python/
 │       └── term_sdk/
 │           ├── __init__.py
-│           ├── context.py      # AgentContext
+│           ├── context.py      # Any
 │           ├── llm.py          # LLM interface
 │           └── errors.py       # CostLimitExceeded, etc.
 ├── tasks/                      # Benchmark tasks
@@ -35,14 +35,14 @@ term-challenge/
 
 ## The Term SDK
 
-### AgentContext
+### Any
 
-Your agent receives an `AgentContext` with:
+Your agent receives an `Any` with:
 
 ```python
-from term_sdk import AgentContext
+from term_sdk import Any
 
-def run(ctx: AgentContext) -> str:
+def run(ctx: Any) -> str:
     # Available attributes:
     ctx.instruction  # The task to complete
     ctx.cwd          # Working directory

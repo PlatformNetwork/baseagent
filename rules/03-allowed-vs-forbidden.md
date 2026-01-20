@@ -40,8 +40,8 @@ If your agent can identify a specific task and take a shortcut, it's cheating. T
 
 | Allowed | Example |
 |---------|---------|
-| Reading any file in workspace | `ctx.read("/app/src/main.py")` |
-| Writing output files | `ctx.write("/app/result.txt", content)` |
+| Reading any file in workspace | `read_file("/app/src/main.py")` |
+| Writing output files | `write_file("/app/result.txt", content)` |
 | Creating directories | `mkdir -p /app/output` |
 | Modifying source code | Editing files to fix bugs |
 | Deleting files | Cleanup operations |
@@ -130,32 +130,32 @@ A real developer solving a task would:
 
 ```python
 # ALLOWED: Fetching documentation
-ctx.shell("curl -s https://api.github.com/repos/owner/repo/releases/latest")
+shell("curl -s https://api.github.com/repos/owner/repo/releases/latest")
 
 # ALLOWED: Installing packages
-ctx.shell("pip install requests beautifulsoup4")
+shell("pip install requests beautifulsoup4")
 
 # ALLOWED: Cloning a repository
-ctx.shell("git clone https://github.com/example/repo.git")
+shell("git clone https://github.com/example/repo.git")
 
 # ALLOWED: Using a public API
-ctx.shell("curl -s 'https://api.example.com/data?query=test'")
+shell("curl -s 'https://api.example.com/data?query=test'")
 
 # ALLOWED: Web scraping public data
-ctx.shell("wget -q https://example.com/public-data.json")
+shell("wget -q https://example.com/public-data.json")
 ```
 
 ### What Remains Forbidden
 
 ```python
 # FORBIDDEN: Accessing the test/validation system
-ctx.shell("cat /validator/expected_output.txt")
+shell("cat /validator/expected_output.txt")
 
 # FORBIDDEN: Calling your own pre-computed solution server
-ctx.shell("curl http://my-cheat-server.com/solutions?task=xyz")
+shell("curl http://my-cheat-server.com/solutions?task=xyz")
 
 # FORBIDDEN: Fingerprinting the benchmark environment
-ctx.shell("curl http://validator-internal/task-hints")
+shell("curl http://validator-internal/task-hints")
 ```
 
 **Rule of thumb**: If a human developer would do it to solve the task legitimately, your agent can do it too.
@@ -194,7 +194,7 @@ The difference: Generic format examples are fine. Task-specific solution example
 **OK:**
 ```python
 # Checking if a tool exists
-result = ctx.shell("which python3")
+result = shell("which python3")
 if result.ok:
     python_cmd = "python3"
 else:
@@ -214,7 +214,7 @@ if os.environ.get("TERM_BENCH"):
 ```python
 # Generic error recovery
 if "permission denied" in result.output.lower():
-    ctx.shell("sudo " + cmd)
+    shell("sudo " + cmd)
 ```
 
 **Not OK:**
@@ -251,8 +251,8 @@ Use this to evaluate if something is allowed:
 # FORBIDDEN
 def run(self, ctx):
     if "hello" in ctx.instruction.lower():
-        ctx.shell('echo "Hello, World!" > hello.txt')
-        ctx.done()
+        shell('echo "Hello, World!" > hello.txt')
+        # Task complete
         return
 ```
 
@@ -288,7 +288,7 @@ KNOWN_SOLUTIONS = {
 
 def run(self, ctx):
     if ctx.instruction in KNOWN_SOLUTIONS:
-        ctx.shell(KNOWN_SOLUTIONS[ctx.instruction])
+        shell(KNOWN_SOLUTIONS[ctx.instruction])
 ```
 
 **Why:** Cached solutions bypass reasoning entirely.
@@ -299,9 +299,9 @@ def run(self, ctx):
 # FORBIDDEN
 def run(self, ctx):
     # Trying to read test expectations
-    test_file = ctx.shell("find . -name 'test*.py' | head -1").stdout.strip()
+    test_file = shell("find . -name 'test*.py' | head -1").stdout.strip()
     if test_file:
-        test_content = ctx.read(test_file)
+        test_content = read_file(test_file)
         expected = extract_assertions(test_content)
 ```
 
@@ -316,7 +316,7 @@ def run(self, ctx):
 ```python
 # ALLOWED
 def run(self, ctx):
-    context = ctx.shell("pwd && ls -la").output
+    context = shell("pwd && ls -la").output
     
     response = self.llm.ask(
         f"Task: {ctx.instruction}\n\nEnvironment:\n{context}\n\n"
@@ -334,13 +334,13 @@ def run(self, ctx):
 # ALLOWED - Generic, not task-specific
 def run_with_retry(self, ctx, cmd, retries=3):
     for attempt in range(retries):
-        result = ctx.shell(cmd)
+        result = shell(cmd)
         if result.ok:
             return result
         
         # Generic retry on transient errors
         if "connection" in result.stderr.lower():
-            ctx.shell("sleep 5")
+            shell("sleep 5")
             continue
         
         break
@@ -352,10 +352,10 @@ def run_with_retry(self, ctx, cmd, retries=3):
 ```python
 # ALLOWED - Verifies via LLM, not hardcoded checks
 def verify_output(self, ctx, expected_path):
-    if not ctx.shell(f"test -f {expected_path}").ok:
+    if not shell(f"test -f {expected_path}").ok:
         return False
     
-    content = ctx.read(expected_path).stdout
+    content = read_file(expected_path).stdout
     
     verification = self.llm.ask(
         f"Task was: {ctx.instruction}\n\n"

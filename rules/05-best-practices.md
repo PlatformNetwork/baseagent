@@ -11,32 +11,32 @@ Before taking any action, gather context about the environment.
 ### Implementation
 
 ```python
-def explore(self, ctx: AgentContext) -> str:
+def explore(self, ctx: Any) -> str:
     """Gather context about the current environment."""
     results = []
     
     # Current location
-    pwd = ctx.shell("pwd")
+    pwd = shell("pwd")
     results.append(f"Working directory: {pwd.stdout.strip()}")
     
     # List files
-    ls = ctx.shell("ls -la")
+    ls = shell("ls -la")
     results.append(f"Files:\n{ls.stdout}")
     
     # Check for README
-    readme = ctx.shell("cat README.md 2>/dev/null")
+    readme = shell("cat README.md 2>/dev/null")
     if readme.ok:
         results.append(f"README.md:\n{readme.stdout[:2000]}")
     
     # Check for common project files
     for config in ["package.json", "Cargo.toml", "setup.py", "Makefile"]:
-        check = ctx.shell(f"cat {config} 2>/dev/null")
+        check = shell(f"cat {config} 2>/dev/null")
         if check.ok:
             results.append(f"{config}:\n{check.stdout[:1000]}")
     
     return "\n\n".join(results)
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # ALWAYS explore first
     context = self.explore(ctx)
     
@@ -119,7 +119,7 @@ def parse_llm_response(response_text: str) -> dict | None:
 ### Usage in Agent
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Task: {ctx.instruction}"}
@@ -140,11 +140,11 @@ def run(self, ctx: AgentContext):
         
         # Execute commands
         for cmd_obj in data.get("commands", []):
-            result = ctx.shell(cmd_obj["command"], timeout=cmd_obj.get("timeout", 30))
+            result = shell(cmd_obj["command"], timeout=cmd_obj.get("timeout", 30))
             messages.append({"role": "assistant", "content": response.text})
             messages.append({"role": "user", "content": f"Output:\n{result.output[-3000:]}"})
     
-    ctx.done()
+    # Task complete
 ```
 
 ---
@@ -177,11 +177,11 @@ def truncate_output(output: str, max_bytes: int = 10000) -> str:
         f"{last}"
     )
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     while True:
         response = self.llm.chat(messages[-20:])  # Keep last 20 messages
         
-        result = ctx.shell(command)
+        result = shell(command)
         
         # Truncate output before adding to context
         truncated = truncate_output(result.output)
@@ -248,7 +248,7 @@ If yes, respond with {{"task_complete": true}} again.
 If not, continue working.
 """
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     pending_confirmation = False
     
     while True:
@@ -258,12 +258,12 @@ def run(self, ctx: AgentContext):
         if data.get("task_complete"):
             if pending_confirmation:
                 # Second confirmation - actually done
-                ctx.log("Task completion confirmed")
+                print("Task completion confirmed")
                 break
             else:
                 # First signal - ask for confirmation
                 pending_confirmation = True
-                state = ctx.shell("pwd && ls -la").output
+                state = shell("pwd && ls -la").output
                 
                 messages.append({"role": "assistant", "content": response.text})
                 messages.append({
@@ -279,7 +279,7 @@ def run(self, ctx: AgentContext):
         
         # Normal execution...
     
-    ctx.done()
+    # Task complete
 ```
 
 ---
@@ -291,25 +291,25 @@ Before completing, always verify expected outputs.
 ### Implementation
 
 ```python
-def verify_outputs(self, ctx: AgentContext, expected_files: list[str]) -> bool:
+def verify_outputs(self, ctx: Any, expected_files: list[str]) -> bool:
     """Verify that expected output files exist and have content."""
     
     for filepath in expected_files:
         # Check existence
-        check = ctx.shell(f"test -f {filepath} && echo EXISTS")
+        check = shell(f"test -f {filepath} && echo EXISTS")
         if "EXISTS" not in check.stdout:
-            ctx.log(f"Missing output file: {filepath}")
+            print(f"Missing output file: {filepath}")
             return False
         
         # Check non-empty
-        size = ctx.shell(f"stat -c%s {filepath} 2>/dev/null || stat -f%z {filepath}")
+        size = shell(f"stat -c%s {filepath} 2>/dev/null || stat -f%z {filepath}")
         if size.ok and int(size.stdout.strip()) == 0:
-            ctx.log(f"Output file is empty: {filepath}")
+            print(f"Output file is empty: {filepath}")
             return False
     
     return True
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # ... task execution ...
     
     # Before completing, verify outputs
@@ -324,10 +324,10 @@ def run(self, ctx: AgentContext):
     expected_files = data.get("files", [])
     
     if expected_files and not self.verify_outputs(ctx, expected_files):
-        ctx.log("Output verification failed, continuing...")
+        print("Output verification failed, continuing...")
         # Don't mark complete - continue working
     else:
-        ctx.done()
+        # Task complete
 ```
 
 ---
@@ -346,7 +346,7 @@ Every action should be driven by the instruction. Don't assume the task needs:
 ### Implementation
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Let LLM analyze what the instruction actually requires
     response = self.llm.ask(
         f"Task: {ctx.instruction}\n\n"
@@ -368,13 +368,13 @@ def run(self, ctx: AgentContext):
 def run(self, ctx):
     # ... do task ...
     self.cleanup()  # NOT REQUESTED!
-    ctx.done()
+    # Task complete
 
 # WRONG: Assuming specific output format
 def run(self, ctx):
     # ... do task ...
     self.save_as_json()  # WAS JSON REQUESTED?
-    ctx.done()
+    # Task complete
 
 # RIGHT: Only do what's asked
 def run(self, ctx):
@@ -397,7 +397,7 @@ Implement robust error handling with retries.
 ```python
 def run_with_retry(
     self,
-    ctx: AgentContext,
+    ctx: Any,
     command: str,
     max_retries: int = 3,
     retry_delay: int = 5
@@ -407,7 +407,7 @@ def run_with_retry(
     last_result = None
     
     for attempt in range(max_retries):
-        result = ctx.shell(command)
+        result = shell(command)
         last_result = result
         
         if result.ok:
@@ -428,8 +428,8 @@ def run_with_retry(
         )
         
         if is_transient and attempt < max_retries - 1:
-            ctx.log(f"Transient error, retrying in {retry_delay}s...")
-            ctx.shell(f"sleep {retry_delay}")
+            print(f"Transient error, retrying in {retry_delay}s...")
+            shell(f"sleep {retry_delay}")
             continue
         
         # Non-transient error or out of retries
@@ -441,7 +441,7 @@ def run_with_retry(
 ### LLM-Assisted Error Recovery
 
 ```python
-def handle_error(self, ctx: AgentContext, error_output: str) -> str | None:
+def handle_error(self, ctx: Any, error_output: str) -> str | None:
     """Let LLM suggest error recovery."""
     
     response = self.llm.ask(
@@ -467,38 +467,38 @@ Make debugging easier with clear logging.
 ### Implementation
 
 ```python
-def run(self, ctx: AgentContext):
-    ctx.log(f"Starting task: {ctx.instruction[:100]}...")
+def run(self, ctx: Any):
+    print(f"Starting task: {ctx.instruction[:100]}...")
     
     context = self.explore(ctx)
-    ctx.log(f"Explored environment: {len(context)} chars")
+    print(f"Explored environment: {len(context)} chars")
     
     iteration = 0
     while iteration < 100:
         iteration += 1
-        ctx.log(f"Iteration {iteration}")
+        print(f"Iteration {iteration}")
         
         response = self.llm.chat(messages)
         data = parse_llm_response(response.text)
         
         if not data:
-            ctx.log("Failed to parse LLM response")
+            print("Failed to parse LLM response")
             continue
         
-        ctx.log(f"Analysis: {data.get('analysis', '')[:100]}...")
-        ctx.log(f"Plan: {data.get('plan', '')[:100]}...")
+        print(f"Analysis: {data.get('analysis', '')[:100]}...")
+        print(f"Plan: {data.get('plan', '')[:100]}...")
         
         for cmd in data.get("commands", []):
-            ctx.log(f"$ {cmd['command'][:80]}")
-            result = ctx.shell(cmd["command"])
-            ctx.log(f"Exit: {result.exit_code}, Output: {len(result.output)} chars")
+            print(f"$ {cmd['command'][:80]}")
+            result = shell(cmd["command"])
+            print(f"Exit: {result.exit_code}, Output: {len(result.output)} chars")
         
         if data.get("task_complete"):
-            ctx.log("Task marked complete")
+            print("Task marked complete")
             break
     
-    ctx.log(f"Finished after {iteration} iterations")
-    ctx.done()
+    print(f"Finished after {iteration} iterations")
+    # Task complete
 ```
 
 ---
@@ -541,7 +541,7 @@ class ContextManager:
     def get_messages(self) -> list:
         return self.messages.copy()
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     context_mgr = ContextManager(max_messages=20)
     context_mgr.add("system", SYSTEM_PROMPT)
     context_mgr.add("user", f"Task: {ctx.instruction}")
@@ -564,16 +564,16 @@ Always use absolute paths for output files.
 ### Implementation
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Get working directory
-    pwd = ctx.shell("pwd").stdout.strip()
+    pwd = shell("pwd").stdout.strip()
     
     # When writing files, use absolute paths
     output_path = f"{pwd}/result.txt"
-    ctx.write(output_path, content)
+    write_file(output_path, content)
     
     # Verify with absolute path
-    ctx.shell(f"ls -la {output_path}")
+    shell(f"ls -la {output_path}")
 ```
 
 ### In LLM Prompts
@@ -591,8 +591,8 @@ When creating files, use full paths like:
 Never use relative paths like ./output.txt
 """
 
-def run(self, ctx: AgentContext):
-    pwd = ctx.shell("pwd").stdout.strip()
+def run(self, ctx: Any):
+    pwd = shell("pwd").stdout.strip()
     system = SYSTEM_PROMPT.format(pwd=pwd)
     
     messages = [{"role": "system", "content": system}, ...]

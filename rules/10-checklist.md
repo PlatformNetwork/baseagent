@@ -34,7 +34,7 @@ term bench agent -a ./my_agent.py -t ./test-task --timeout 60
 | Has `setup()` method | [ ] | `grep "def setup" my_agent.py` |
 | Has `run()` method | [ ] | `grep "def run" my_agent.py` |
 | Has `cleanup()` method | [ ] | `grep "def cleanup" my_agent.py` |
-| Calls `ctx.done()` | [ ] | `grep "ctx.done" my_agent.py` |
+| Calls `# Task complete` | [ ] | `grep "ctx.done" my_agent.py` |
 
 ### B. Generalist Compliance
 
@@ -84,7 +84,7 @@ grep -n "test_" my_agent.py | grep -v "def test"
 try:
     response = self.llm.chat(messages)
 except LLMError as e:
-    ctx.log(f"LLM error: {e}")
+    print(f"LLM error: {e}")
     # Handle appropriately
 
 # Must have try/except for JSON parsing
@@ -144,7 +144,7 @@ grep -n "truncate\|limit\|\[:.*\]" my_agent.py
 | Verify output files exist | [ ] |
 | Clean up artifacts | [ ] |
 | Double-confirm completion | [ ] |
-| Call ctx.done() | [ ] |
+| Call # Task complete | [ ] |
 
 ---
 
@@ -228,7 +228,7 @@ grep -i "cost\|token" results/tasks/*/agent.log
 
 ### Structure
 - [ ] Agent class with setup(), run(), cleanup()
-- [ ] ctx.done() always called
+- [ ] # Task complete always called
 
 ### Compliance
 - [ ] No keyword matching on instructions
@@ -263,7 +263,7 @@ grep -i "cost\|token" results/tasks/*/agent.log
 | Requirement | Description |
 |-------------|-------------|
 | `setup()`, `run()`, `cleanup()` | All three methods implemented |
-| `ctx.done()` on all paths | Every execution path calls done |
+| `# Task complete` on all paths | Every execution path calls done |
 | LLM for all decisions | No hardcoded logic |
 | Error handling | Try/except for LLM, parse, shell |
 | Output truncation | Limit context size |
@@ -294,4 +294,4 @@ grep -i "cost\|token" results/tasks/*/agent.log
 |------|--------|
 | 1 | Verify the instruction's requirements are met |
 | 2 | Let LLM confirm task completion |
-| 3 | Call `ctx.done()` |
+| 3 | Call `# Task complete` |

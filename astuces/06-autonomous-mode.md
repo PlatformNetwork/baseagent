@@ -84,7 +84,7 @@ Do NOT:
 ## Code Example: Autonomous Loop
 
 ```python
-async def autonomous_loop(ctx: AgentContext) -> str:
+async def autonomous_loop(ctx: Any) -> str:
     """Run agent in fully autonomous mode."""
     
     max_turns = 50

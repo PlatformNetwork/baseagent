@@ -19,7 +19,7 @@ Before allowing the agent to complete, inject a verification prompt that forces 
 ## Implementation
 
 ```python
-async def run_agent_loop(ctx: AgentContext) -> str:
+async def run_agent_loop(ctx: Any) -> str:
     """Main agent loop with self-verification."""
     
     while True:

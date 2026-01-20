@@ -116,9 +116,9 @@ flowchart LR
 def run(self, ctx):
     # 1. EXPLORE - Gather context
     explore_results = []
-    explore_results.append(ctx.shell("pwd").output)
-    explore_results.append(ctx.shell("ls -la").output)
-    explore_results.append(ctx.shell("cat README.md 2>/dev/null || echo 'No README'").output)
+    explore_results.append(shell("pwd").output)
+    explore_results.append(shell("ls -la").output)
+    explore_results.append(shell("cat README.md 2>/dev/null || echo 'No README'").output)
     
     context = "\n".join(explore_results)
     
@@ -132,7 +132,7 @@ def run(self, ctx):
     # 3. EXECUTE - Implement the plan
     self.execute_plan(ctx, response.text)
     
-    ctx.done()
+    # Task complete
 ```
 
 ### When to Use
@@ -169,7 +169,7 @@ Respond with JSON:
     "task_complete": false
 }"""
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     messages = [
         {"role": "system", "content": REACT_PROMPT},
         {"role": "user", "content": f"Task: {ctx.instruction}"}
@@ -185,13 +185,13 @@ def run(self, ctx: AgentContext):
         # Execute action
         action = data.get("action")
         if action:
-            result = ctx.shell(action)
+            result = shell(action)
             observation = f"OBSERVATION:\n{result.output[-3000:]}"
             
             messages.append({"role": "assistant", "content": response.text})
             messages.append({"role": "user", "content": observation})
     
-    ctx.done()
+    # Task complete
 ```
 
 ### When to Use
@@ -231,11 +231,11 @@ BATCH_PROMPT = """Respond with JSON containing multiple commands:
     "task_complete": false
 }"""
 
-def execute_batch(self, ctx: AgentContext, commands: list) -> str:
+def execute_batch(self, ctx: Any, commands: list) -> str:
     outputs = []
     
     for cmd in commands:
-        result = ctx.shell(cmd["keystrokes"], timeout=int(cmd.get("duration", 1) * 60))
+        result = shell(cmd["keystrokes"], timeout=int(cmd.get("duration", 1) * 60))
         output = f"$ {cmd['keystrokes']}\n{result.output}"
         
         if result.exit_code != 0:
@@ -327,7 +327,7 @@ def run(self, ctx):
             result = self.execute_tool(ctx, call.name, call.arguments)
             messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
     
-    ctx.done()
+    # Task complete
 ```
 
 ### When to Use
@@ -363,7 +363,7 @@ flowchart TB
 ### Implementation
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     # Get high-level plan
     high_level = self.llm.ask(
         f"Task: {ctx.instruction}\n\n"
@@ -374,7 +374,7 @@ def run(self, ctx: AgentContext):
     steps = self.parse_steps(high_level.text)
     
     for i, step in enumerate(steps):
-        ctx.log(f"Step {i+1}/{len(steps)}: {step[:50]}...")
+        print(f"Step {i+1}/{len(steps)}: {step[:50]}...")
         
         # Expand step into detailed actions
         detailed = self.llm.ask(
@@ -387,7 +387,7 @@ def run(self, ctx: AgentContext):
         # Execute detailed plan
         self.execute_step(ctx, detailed)
     
-    ctx.done()
+    # Task complete
 ```
 
 ### When to Use
@@ -406,7 +406,7 @@ Never mark complete without verification:
 flowchart TB
     A["First task_complete: true"] --> B["Are you SURE?<br/>This will be graded.<br/>Confirm with task_complete: true"]
     B --> C["Second task_complete: true"]
-    C --> D["ctx.done()"]
+    C --> D["# Task complete"]
 ```
 
 ### Implementation (Terminus-2 Style)
@@ -419,7 +419,7 @@ Are you sure you want to mark the task as complete?
 This will trigger grading and you won't be able to make corrections.
 If so, include "task_complete": true in your response again."""
 
-def run(self, ctx: AgentContext):
+def run(self, ctx: Any):
     pending_completion = False
     
     while True:
@@ -433,7 +433,7 @@ def run(self, ctx: AgentContext):
             else:
                 # First signal - ask for confirmation
                 pending_completion = True
-                terminal_state = ctx.shell("pwd && ls -la").output
+                terminal_state = shell("pwd && ls -la").output
                 self.history.append({
                     "role": "user",
                     "content": CONFIRM_MESSAGE.format(terminal_output=terminal_state)
@@ -444,7 +444,7 @@ def run(self, ctx: AgentContext):
         
         # Normal execution...
     
-    ctx.done()
+    # Task complete
 ```
 
 ### When to Use
@@ -474,7 +474,7 @@ Most effective agents combine multiple patterns:
 
 ```python
 class AdvancedAgent(Agent):
-    def run(self, ctx: AgentContext):
+    def run(self, ctx: Any):
         # EPE: Explore first
         context = self.explore(ctx)
         
@@ -487,7 +487,7 @@ class AdvancedAgent(Agent):
         
         # Double Confirmation: Verify before done
         if self.confirm_completion(ctx):
-            ctx.done()
+            # Task complete
 ```
 
 The key is using the right pattern for each phase of the task.
