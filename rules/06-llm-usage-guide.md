@@ -1,6 +1,6 @@
-# 06 - LLM Usage Guide
+# 06 - LLM Usage Guide (SDK 3.0 - litellm)
 
-This guide covers effective use of Large Language Models in generalist agents.
+This guide covers using LLMs with **litellm** (no more term_sdk).
 
 ---
 
@@ -9,44 +9,30 @@ This guide covers effective use of Large Language Models in generalist agents.
 ### Initialization
 
 ```python
-from term_sdk import LLM, LLMError, CostLimitExceeded
+from src.llm.client import LiteLLMClient, LLMError, CostLimitExceeded
 
-class MyAgent(Agent):
-    def setup(self):
-        self.llm = LLM(
-            provider="openrouter",
-            default_model="anthropic/claude-3.5-sonnet",
-            temperature=0.3,  # Lower = more deterministic
-            max_tokens=4096
-        )
-```
-
-### Simple Questions
-
-```python
-# Single question
-response = self.llm.ask("What is the best way to list files in Linux?")
-print(response.text)
-
-# With system prompt
-response = self.llm.ask(
-    "How do I fix this error: Permission denied",
-    system="You are a Linux expert. Be concise."
+# Create the LLM client
+llm = LiteLLMClient(
+    model="openrouter/anthropic/claude-opus-4.5",
+    temperature=0.0,  # 0 = deterministic
+    max_tokens=16384,
+    cost_limit=10.0   # Cost limit in $
 )
 ```
 
-### Conversations
+### Conversations (MANDATORY: keep history)
 
 ```python
+# ALWAYS maintain full history
 messages = [
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "What files are in /etc?"},
 ]
 
-response = self.llm.chat(messages)
+response = llm.chat(messages)
 print(response.text)
 
-# Continue conversation
+# Add response to history
 messages.append({"role": "assistant", "content": response.text})
 messages.append({"role": "user", "content": "Which ones are for networking?"})
 
@@ -226,7 +212,7 @@ def run(self, ctx: AgentContext):
 ### LLM Errors
 
 ```python
-from term_sdk import LLMError, CostLimitExceeded
+from src.llm.client import LLMError, CostLimitExceeded
 
 def call_llm_safe(self, messages: list, max_retries: int = 3) -> Response | None:
     """Call LLM with error handling."""
@@ -356,7 +342,7 @@ def run(self, ctx: AgentContext):
 ### Defining Tools
 
 ```python
-from term_sdk import Tool
+# Format OpenAI/litellm pour les outils
 
 TOOLS = [
     Tool(
@@ -561,7 +547,7 @@ Prompt caching significantly reduces costs and latency by reusing previously pro
 ### Enabling Caching in Term SDK
 
 ```python
-from term_sdk import LLM
+from src.llm.client import LiteLLMClient
 
 class MyAgent(Agent):
     def setup(self):

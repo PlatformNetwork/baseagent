@@ -4,6 +4,94 @@ This document covers proven architecture patterns for building generalist agents
 
 ---
 
+## MANDATORY RULES (SDK 3.0)
+
+> **CRITICAL**: These rules are MANDATORY for all agents.
+
+### 1. Project Structure (MANDATORY)
+
+Agents **MUST** be structured projects, **NOT** single files:
+
+```
+my-agent/
+├── agent.py              # Entry point with --instruction
+├── src/                  # Modules
+│   ├── core/
+│   │   ├── loop.py       # Main loop
+│   │   └── compaction.py # Context management (MANDATORY)
+│   ├── llm/
+│   │   └── client.py     # LLM client (litellm)
+│   └── tools/
+│       └── ...           # Tools
+├── requirements.txt      # Dependencies
+└── pyproject.toml        # Configuration
+```
+
+**Why?**
+- Maintainability and testability
+- Separation of concerns
+- Code reuse
+- Easier debugging
+
+### 2. Session Management (MANDATORY)
+
+Agents **MUST** maintain complete conversation history:
+
+```python
+# CORRECT: Full history
+messages = [
+    {"role": "system", "content": system_prompt},
+    {"role": "user", "content": instruction},
+]
+
+while not done:
+    response = llm.chat(messages)
+    messages.append({"role": "assistant", "content": response.text})
+    
+    for tool_call in response.function_calls:
+        result = execute_tool(tool_call)
+        messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+
+# FORBIDDEN: Context lost between calls
+response = llm.chat([{"role": "user", "content": instruction}])  # NO memory!
+```
+
+### 3. Context Compaction (MANDATORY)
+
+Compaction is **CRITICAL** for performance and reliability.
+
+**Why it's mandatory:**
+- Prevents "context too long" errors
+- Preserves critical information
+- Enables complex multi-step tasks
+- Improves response coherence
+
+**Required implementation:**
+
+```python
+# Recommended constants
+MODEL_CONTEXT_LIMIT = 200_000  # Model context window
+AUTO_COMPACT_THRESHOLD = 0.85  # 85% = trigger compaction
+PRUNE_PROTECT = 40_000         # Protect 40K recent tokens
+PRUNE_MINIMUM = 20_000         # Minimum to recover
+
+def manage_context(messages, llm):
+    total_tokens = estimate_tokens(messages)
+    
+    # Check if compaction needed
+    if total_tokens > MODEL_CONTEXT_LIMIT * AUTO_COMPACT_THRESHOLD:
+        # Step 1: Prune old tool outputs
+        messages = prune_old_tool_outputs(messages)
+        
+        # Step 2: AI compaction if insufficient
+        if estimate_tokens(messages) > MODEL_CONTEXT_LIMIT * AUTO_COMPACT_THRESHOLD:
+            messages = ai_compact(messages, llm)
+    
+    return messages
+```
+
+---
+
 ## Pattern 1: Explore-Plan-Execute (EPE)
 
 The most fundamental pattern. Every task should follow this sequence:
@@ -25,7 +113,7 @@ flowchart LR
 ### Implementation
 
 ```python
-def run(self, ctx: AgentContext):
+def run(self, ctx):
     # 1. EXPLORE - Gather context
     explore_results = []
     explore_results.append(ctx.shell("pwd").output)
@@ -35,17 +123,14 @@ def run(self, ctx: AgentContext):
     context = "\n".join(explore_results)
     
     # 2. PLAN - Let LLM analyze and plan
-    plan = self.llm.ask(
-        f"Task: {ctx.instruction}\n\n"
-        f"Current environment:\n{context}\n\n"
-        "Analyze the task and create a step-by-step plan.",
-        system="You are a planning assistant. Create clear, actionable plans."
-    )
-    
-    ctx.log(f"Plan: {plan.text[:200]}...")
+    messages = [
+        {"role": "system", "content": "You are a planning assistant."},
+        {"role": "user", "content": f"Task: {ctx.instruction}\n\nEnvironment:\n{context}"}
+    ]
+    response = self.llm.chat(messages)
     
     # 3. EXECUTE - Implement the plan
-    self.execute_plan(ctx, plan)
+    self.execute_plan(ctx, response.text)
     
     ctx.done()
 ```
@@ -190,35 +275,34 @@ flowchart TB
 ### Implementation
 
 ```python
-from term_sdk import Tool
-
+# Définition des outils (format OpenAI/litellm)
 TOOLS = [
-    Tool(
-        name="run_command",
-        description="Execute a shell command",
-        parameters={
+    {
+        "name": "run_command",
+        "description": "Execute a shell command",
+        "parameters": {
             "type": "object",
             "properties": {
                 "command": {"type": "string", "description": "Shell command to run"}
             },
             "required": ["command"]
         }
-    ),
-    Tool(
-        name="read_file",
-        description="Read contents of a file",
-        parameters={
+    },
+    {
+        "name": "read_file",
+        "description": "Read contents of a file",
+        "parameters": {
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "File path to read"}
             },
             "required": ["path"]
         }
-    ),
-    Tool(
-        name="write_file",
-        description="Write content to a file",
-        parameters={
+    },
+    {
+        "name": "write_file",
+        "description": "Write content to a file",
+        "parameters": {
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "File path"},
@@ -226,25 +310,22 @@ TOOLS = [
             },
             "required": ["path", "content"]
         }
-    )
+    }
 ]
 
-def setup(self):
-    self.llm = LLM(default_model="anthropic/claude-3.5-sonnet")
-    self.llm.register_function("run_command", self.run_command)
-    self.llm.register_function("read_file", self.read_file)
-    self.llm.register_function("write_file", self.write_file)
-
-def run(self, ctx: AgentContext):
-    self.ctx = ctx
-    
+def run(self, ctx):
     messages = [
         {"role": "system", "content": "You are a task-solving agent with tools."},
         {"role": "user", "content": ctx.instruction}
     ]
     
-    # Let LLM use tools automatically
-    response = self.llm.chat_with_functions(messages, TOOLS, max_iterations=50)
+    while not ctx.is_done:
+        response = self.llm.chat(messages, tools=TOOLS)
+        messages.append({"role": "assistant", "content": response.text})
+        
+        for call in response.function_calls:
+            result = self.execute_tool(ctx, call.name, call.arguments)
+            messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
     
     ctx.done()
 ```

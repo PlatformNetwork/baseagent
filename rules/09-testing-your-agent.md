@@ -37,7 +37,7 @@ def test_basic():
 
 def test_simple_task():
     """Test a simple task."""
-    from term_sdk import AgentContext
+    # AgentContext est duck-typed (a shell(), cwd, instruction, done())
     
     agent = MyAgent()
     agent.setup()

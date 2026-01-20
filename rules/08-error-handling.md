@@ -47,7 +47,7 @@ Errors parsing LLM responses:
 
 ```python
 import time
-from term_sdk import LLM, LLMError, CostLimitExceeded
+from src.llm.client import LiteLLMClient, LLMError, CostLimitExceeded
 
 class RobustLLMClient:
     def __init__(self, ctx: AgentContext):
