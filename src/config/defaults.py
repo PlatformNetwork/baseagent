@@ -1,13 +1,12 @@
 """
 Hardcoded benchmark configuration for SuperAgent.
 
-Simulates Codex exec with these flags:
-- --model gpt-5.2
-- -c model_reasoning_effort=xhigh
-- --dangerously-bypass-approvals-and-sandbox
-- --skip-git-repo-check
-- --enable unified_exec
-- --json
+Default provider: Chutes API with Kimi K2.5-TEE model.
+Supports thinking mode with <think>...</think> reasoning blocks.
+
+Alternative providers available via LLM_PROVIDER environment variable:
+- "chutes" (default): Chutes API with Kimi K2.5-TEE
+- "openrouter": OpenRouter with Claude or other models
 
 All settings are hardcoded - no CLI arguments needed.
 """
@@ -18,33 +17,40 @@ import os
 from typing import Any, Dict
 
 
-# Main configuration - simulates Codex exec benchmark mode
+# Main configuration - default to Chutes API with Kimi K2.5-TEE
 CONFIG: Dict[str, Any] = {
     # ==========================================================================
-    # Model Settings (simulates --model gpt-5.2 -c model_reasoning_effort=xhigh)
+    # Model Settings - Chutes API with Kimi K2.5-TEE
     # ==========================================================================
     
-    # Model to use via OpenRouter (prefix with openrouter/ for litellm)
-    "model": os.environ.get("LLM_MODEL", "openrouter/anthropic/claude-sonnet-4-20250514"),
+    # Model to use via Chutes API
+    # Kimi K2.5-TEE: 1T params (32B activated), 256K context window
+    # Supports thinking mode with reasoning_content
+    "model": os.environ.get("LLM_MODEL", "moonshotai/Kimi-K2.5-TEE"),
     
-    # Provider
-    "provider": "openrouter",
+    # Provider: "chutes" for Chutes API, "openrouter" for litellm/OpenRouter
+    "provider": os.environ.get("LLM_PROVIDER", "chutes"),
     
-    # Reasoning effort: none, minimal, low, medium, high, xhigh (not used for Claude)
-    "reasoning_effort": "none",
+    # Enable Kimi K2.5 thinking mode (reasoning in thinking blocks)
+    "enable_thinking": True,
     
-    # Token limits
+    # Token limits (Kimi K2.5 supports up to 32K output)
     "max_tokens": 16384,
     
-    # Temperature (0 = deterministic)
-    "temperature": 0.0,
+    # Temperature - Kimi K2.5 best practices:
+    # - Thinking mode: 1.0 (with top_p=0.95)
+    # - Instant mode: 0.6 (with top_p=0.95)
+    "temperature": 1.0,
+    
+    # Cost limit in USD
+    "cost_limit": 100.0,
     
     # ==========================================================================
     # Agent Execution Settings
     # ==========================================================================
     
     # Maximum iterations before stopping
-    "max_iterations": 200,
+    "max_iterations": 350,
     
     # Maximum tokens for tool output truncation (middle-out strategy)
     "max_output_tokens": 2500,  # ~10KB
@@ -56,10 +62,10 @@ CONFIG: Dict[str, Any] = {
     # Context Management (like OpenCode/Codex)
     # ==========================================================================
     
-    # Model context window (Claude Opus 4.5 = 200K)
-    "model_context_limit": 200_000,
+    # Model context window (Kimi K2.5 = 256K)
+    "model_context_limit": 256_000,
     
-    # Reserved tokens for output
+    # Reserved tokens for output (Kimi K2.5 can output up to 32K)
     "output_token_max": 32_000,
     
     # Trigger compaction at this % of usable context (85%)
@@ -70,16 +76,17 @@ CONFIG: Dict[str, Any] = {
     "prune_minimum": 20_000,   # Only prune if we can recover at least this many
     
     # ==========================================================================
-    # Prompt Caching (Anthropic via OpenRouter/Bedrock)
+    # Prompt Caching
     # ==========================================================================
     
-    # Enable prompt caching
+    # Enable prompt caching (Chutes may support server-side caching)
     "cache_enabled": True,
     
-    # Note: Anthropic caching requires minimum tokens per breakpoint:
-    # - Claude Opus 4.5 on Bedrock: 4096 tokens minimum
-    # - Claude Sonnet/other: 1024 tokens minimum
-    # System prompt should be large enough to meet this threshold
+    # Chutes API caching notes:
+    # - Kimi K2.5 on Chutes uses server-side optimization
+    # - Keep system prompt stable for best performance
+    "cache_extended_retention": True,
+    "cache_key": None,
     
     # ==========================================================================
     # Simulated Codex Flags (all enabled/bypassed for benchmark)

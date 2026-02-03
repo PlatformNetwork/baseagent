@@ -3,13 +3,22 @@
 SuperAgent for Term Challenge - Entry Point (SDK 3.0 Compatible).
 
 This agent accepts --instruction from the validator and runs autonomously.
-Uses litellm for LLM calls instead of term_sdk.
+Supports multiple LLM providers:
+- Chutes API (default): Uses moonshotai/Kimi-K2.5-TEE with thinking mode
+- OpenRouter/litellm: Fallback to other providers
 
 Installation:
     pip install .                    # via pyproject.toml
     pip install -r requirements.txt  # via requirements.txt
 
 Usage:
+    # With Chutes API (default - requires CHUTES_API_TOKEN)
+    export CHUTES_API_TOKEN="your-token"
+    python agent.py --instruction "Your task description here..."
+    
+    # With OpenRouter (fallback)
+    export LLM_PROVIDER="openrouter"
+    export OPENROUTER_API_KEY="your-key"
     python agent.py --instruction "Your task description here..."
 """
 
@@ -29,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 def ensure_dependencies():
     """Install dependencies if not present."""
     try:
-        import litellm
+        import openai
         import httpx
         import pydantic
     except ImportError:
@@ -48,7 +57,7 @@ from src.config.defaults import CONFIG
 from src.core.loop import run_agent_loop
 from src.tools.registry import ToolRegistry
 from src.output.jsonl import emit, ErrorEvent
-from src.llm.client import LiteLLMClient, CostLimitExceeded
+from src.llm.client import get_llm_client, CostLimitExceeded, ChutesClient, LiteLLMClient
 
 
 class AgentContext:
@@ -130,21 +139,30 @@ def main():
     parser.add_argument("--instruction", required=True, help="Task instruction from validator")
     args = parser.parse_args()
     
+    provider = CONFIG.get("provider", "chutes")
+    
     _log("=" * 60)
-    _log("SuperAgent Starting (SDK 3.0 - litellm)")
+    _log(f"SuperAgent Starting (SDK 3.0 - {provider})")
     _log("=" * 60)
+    _log(f"Provider: {provider}")
     _log(f"Model: {CONFIG['model']}")
-    _log(f"Reasoning effort: {CONFIG.get('reasoning_effort', 'default')}")
+    _log(f"Thinking mode: {CONFIG.get('enable_thinking', True)}")
     _log(f"Instruction: {args.instruction[:200]}...")
     _log("-" * 60)
     
     # Initialize components
     start_time = time.time()
     
-    llm = LiteLLMClient(
+    # Use factory function to get appropriate client based on provider
+    llm = get_llm_client(
+        provider=provider,
         model=CONFIG["model"],
         temperature=CONFIG.get("temperature"),
         max_tokens=CONFIG.get("max_tokens", 16384),
+        cost_limit=CONFIG.get("cost_limit", 100.0),
+        enable_thinking=CONFIG.get("enable_thinking", True),
+        cache_extended_retention=CONFIG.get("cache_extended_retention", True),
+        cache_key=CONFIG.get("cache_key"),
     )
     
     tools = ToolRegistry()
