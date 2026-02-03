@@ -83,7 +83,7 @@ AUTO_COMPACT_THRESHOLD = 0.85
 from src.llm.client import LLMClient
 
 llm = LLMClient(
-    model="deepseek/deepseek-chat",
+    model="moonshotai/Kimi-K2.5-TEE",
     temperature=0.0,
     max_tokens=16384,
 )
@@ -129,7 +129,7 @@ See `src/config/defaults.py`:
 
 ```python
 CONFIG = {
-    "model": "deepseek/deepseek-chat",
+    "model": "moonshotai/Kimi-K2.5-TEE",
     "max_tokens": 16384,
     "max_iterations": 200,
     "auto_compact_threshold": 0.85,
