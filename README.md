@@ -38,8 +38,15 @@ graph TB
     end
     
     subgraph LLM["LLM Layer (External)"]
-        Client["Chutes API Client"]
-        Model["moonshotai/Kimi-K2.5-TEE"]
+        subgraph Chutes["Chutes API"]
+            Client["Chutes API Client"]
+            Model["moonshotai/Kimi-K2.5-TEE"]
+        end
+        
+        subgraph BasilicaLLM["Basilica (Soon)"]
+            GPUServer["GPU Inference Server"]
+            cLLM["cLLM Engine"]
+        end
     end
     
     CLI --> Loop
