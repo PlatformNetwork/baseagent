@@ -47,12 +47,12 @@ Errors parsing LLM responses:
 
 ```python
 import time
-from src.llm.client import LiteLLMClient, LLMError, CostLimitExceeded
+from src.llm.client import LLMClient, LLMError, CostLimitExceeded
 
 class RobustLLMClient:
     def __init__(self, ctx: Any):
         self.ctx = ctx
-        self.llm = LLM(default_model="anthropic/claude-3.5-sonnet")
+        self.llm = LLMClient(model="deepseek/deepseek-chat")
         self.max_retries = 3
         self.base_delay = 5
     
