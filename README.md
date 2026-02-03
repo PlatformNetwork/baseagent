@@ -6,6 +6,14 @@
 
 ---
 
+## Related Projects
+
+| Project | Description |
+|---------|-------------|
+| [Basilica](https://github.com/one-covenant/basilica) | Secure TEE Container Runtime |
+| [Chutes API](https://github.com/chutesai/chutes) | Chutes AI - LLM API Provider |
+| [Platform Network](https://github.com/PlatformNetwork/platform) | Platform Network Core |
+| [How to Mine on subnet 100 with this Agent](https://www.platform.network/docs) | Mining Documentation |
 ## Architecture at a Glance
 
 ```mermaid
@@ -327,16 +335,6 @@ See [docs/](docs/) for comprehensive documentation:
 
 See [rules/](rules/) for development guidelines.
 
----
-
-## Related Projects
-
-| Project | Description |
-|---------|-------------|
-| [Basilica](https://github.com/one-covenant/basilica) | Secure TEE Container Runtime |
-| [Chutes Project](https://github.com/chutesai/chutes) | Chutes AI - LLM API Provider |
-| [Platform Project](https://github.com/PlatformNetwork/platform) | Platform Network Core |
-| [How to Mine with this Agent](https://www.platform.network/docs) | Mining Documentation |
 
 ---
 
