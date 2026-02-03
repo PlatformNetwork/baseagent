@@ -18,19 +18,18 @@ Event Types:
 from __future__ import annotations
 
 import json
-import sys
-import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
-
 
 # =============================================================================
 # Thread Events
 # =============================================================================
 
+
 @dataclass
 class ThreadStartedEvent:
     """Emitted when a new thread/session is started."""
+
     thread_id: str
     type: str = field(default="thread.started", init=False)
 
@@ -39,15 +38,18 @@ class ThreadStartedEvent:
 # Turn Events
 # =============================================================================
 
+
 @dataclass
 class TurnStartedEvent:
     """Emitted when a turn is started (user sends message)."""
+
     type: str = field(default="turn.started", init=False)
 
 
 @dataclass
 class Usage:
     """Token usage statistics."""
+
     input_tokens: int = 0
     cached_input_tokens: int = 0
     output_tokens: int = 0
@@ -56,6 +58,7 @@ class Usage:
 @dataclass
 class TurnCompletedEvent:
     """Emitted when a turn is completed successfully."""
+
     usage: Dict[str, int]
     type: str = field(default="turn.completed", init=False)
 
@@ -63,6 +66,7 @@ class TurnCompletedEvent:
 @dataclass
 class TurnFailedEvent:
     """Emitted when a turn fails."""
+
     error: Dict[str, str]
     type: str = field(default="turn.failed", init=False)
 
@@ -71,9 +75,11 @@ class TurnFailedEvent:
 # Item Events
 # =============================================================================
 
+
 @dataclass
 class ItemStartedEvent:
     """Emitted when an item starts processing."""
+
     item: Dict[str, Any]
     type: str = field(default="item.started", init=False)
 
@@ -81,6 +87,7 @@ class ItemStartedEvent:
 @dataclass
 class ItemUpdatedEvent:
     """Emitted when an item is updated (e.g., todo list)."""
+
     item: Dict[str, Any]
     type: str = field(default="item.updated", init=False)
 
@@ -88,6 +95,7 @@ class ItemUpdatedEvent:
 @dataclass
 class ItemCompletedEvent:
     """Emitted when an item completes processing."""
+
     item: Dict[str, Any]
     type: str = field(default="item.completed", init=False)
 
@@ -96,9 +104,11 @@ class ItemCompletedEvent:
 # Error Events
 # =============================================================================
 
+
 @dataclass
 class ErrorEvent:
     """Emitted for fatal errors."""
+
     message: str
     type: str = field(default="error", init=False)
 
@@ -106,6 +116,7 @@ class ErrorEvent:
 # =============================================================================
 # Item Types (for item.started/completed payloads)
 # =============================================================================
+
 
 def make_agent_message_item(item_id: str, text: str) -> Dict[str, Any]:
     """Create an agent_message item."""
@@ -203,7 +214,7 @@ def reset_item_counter() -> None:
 def emit(event) -> None:
     """
     Emit a single JSONL event to stdout.
-    
+
     Args:
         event: Dataclass event to emit
     """
@@ -220,7 +231,7 @@ def emit(event) -> None:
 def emit_raw(data: Dict[str, Any]) -> None:
     """
     Emit a raw dictionary as JSONL.
-    
+
     Args:
         data: Dictionary to emit
     """

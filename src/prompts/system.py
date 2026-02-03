@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-
 # =============================================================================
 # Context Strings
 # =============================================================================
@@ -67,15 +66,16 @@ Provide specific, actionable feedback with examples."""
 # Token Estimation
 # =============================================================================
 
+
 def estimate_tokens(text: str) -> int:
     """Estimate token count for text.
-    
+
     Uses a simple heuristic based on character count.
     More accurate estimation would require a tokenizer.
-    
+
     Args:
         text: Text to estimate tokens for.
-        
+
     Returns:
         Estimated token count.
     """
@@ -89,39 +89,41 @@ def estimate_tokens(text: str) -> int:
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class PromptSection:
     """A section of the system prompt.
-    
+
     Attributes:
         name: Section name (used as header).
         content: Section content.
         enabled: Whether this section is enabled.
         priority: Priority (higher = earlier in prompt).
     """
+
     name: str
     content: str
     enabled: bool = True
     priority: int = 0
-    
+
     def with_priority(self, priority: int) -> PromptSection:
         """Set priority and return self for chaining.
-        
+
         Args:
             priority: Priority value (higher = earlier).
-            
+
         Returns:
             Self for method chaining.
         """
         self.priority = priority
         return self
-    
+
     def set_enabled(self, enabled: bool) -> PromptSection:
         """Set enabled state and return self for chaining.
-        
+
         Args:
             enabled: Whether section is enabled.
-            
+
         Returns:
             Self for method chaining.
         """
@@ -132,10 +134,10 @@ class PromptSection:
 @dataclass
 class SystemPrompt:
     """System prompt configuration.
-    
+
     Supports base prompts, sections, variables, capability contexts,
     custom instructions, and personas.
-    
+
     Attributes:
         base: Base prompt text.
         sections: Sections to include.
@@ -146,6 +148,7 @@ class SystemPrompt:
         custom_instructions: Custom instructions.
         persona: Persona/role.
     """
+
     base: Optional[str] = None
     sections: List[PromptSection] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
@@ -155,133 +158,130 @@ class SystemPrompt:
     custom_instructions: Optional[str] = None
     persona: Optional[str] = None
     _token_count: int = 0
-    
+
     @classmethod
     def new(cls) -> SystemPrompt:
         """Create a new system prompt.
-        
+
         Returns:
             New SystemPrompt instance.
         """
         return cls()
-    
+
     @classmethod
     def with_base(cls, base: str) -> SystemPrompt:
         """Create with base text.
-        
+
         Args:
             base: Base prompt text.
-            
+
         Returns:
             New SystemPrompt with base set.
         """
         prompt = cls(base=base)
         prompt._recalculate_tokens()
         return prompt
-    
+
     def set_base(self, base: str) -> None:
         """Set base prompt.
-        
+
         Args:
             base: Base prompt text.
         """
         self.base = base
         self._recalculate_tokens()
-    
+
     def add_section(self, section: PromptSection) -> None:
         """Add a section.
-        
+
         Args:
             section: Section to add.
         """
         self.sections.append(section)
         self._recalculate_tokens()
-    
+
     def remove_section(self, name: str) -> None:
         """Remove a section by name.
-        
+
         Args:
             name: Name of section to remove.
         """
         self.sections = [s for s in self.sections if s.name != name]
         self._recalculate_tokens()
-    
+
     def set_variable(self, key: str, value: str) -> None:
         """Set a variable.
-        
+
         Args:
             key: Variable name.
             value: Variable value.
         """
         self.variables[key] = value
         self._recalculate_tokens()
-    
+
     def set_persona(self, persona: str) -> None:
         """Set persona.
-        
+
         Args:
             persona: Persona/role description.
         """
         self.persona = persona
         self._recalculate_tokens()
-    
+
     def set_custom_instructions(self, instructions: str) -> None:
         """Set custom instructions.
-        
+
         Args:
             instructions: Custom instructions text.
         """
         self.custom_instructions = instructions
         self._recalculate_tokens()
-    
+
     def enable_code_execution(self) -> None:
         """Enable code execution context."""
         self.code_execution = True
         self._recalculate_tokens()
-    
+
     def enable_file_operations(self) -> None:
         """Enable file operations context."""
         self.file_operations = True
         self._recalculate_tokens()
-    
+
     def enable_web_search(self) -> None:
         """Enable web search context."""
         self.web_search = True
         self._recalculate_tokens()
-    
+
     def token_count(self) -> int:
         """Get token count estimate.
-        
+
         Returns:
             Estimated token count.
         """
         return self._token_count
-    
+
     def render(self) -> Optional[str]:
         """Render the full system prompt.
-        
+
         Combines persona, base, sections (sorted by priority),
         capability contexts, and custom instructions.
-        
+
         Returns:
             Rendered prompt string, or None if empty.
         """
         parts: List[str] = []
-        
+
         # Persona
         if self.persona:
             parts.append(self.persona)
-        
+
         # Base prompt
         if self.base:
             rendered = self._render_template(self.base)
             parts.append(rendered)
-        
+
         # Sections (sorted by priority, higher first)
-        sorted_sections = sorted(
-            self.sections,
-            key=lambda s: -s.priority
-        )
+        sorted_sections = sorted(self.sections, key=lambda s: -s.priority)
         for section in sorted_sections:
             if section.enabled:
                 content = self._render_template(section.content)
@@ -289,7 +289,7 @@ class SystemPrompt:
                     parts.append(f"## {section.name}\n{content}")
                 else:
                     parts.append(content)
-        
+
         # Capability contexts
         if self.code_execution:
             parts.append(CODE_EXECUTION_CONTEXT)
@@ -297,24 +297,24 @@ class SystemPrompt:
             parts.append(FILE_OPERATIONS_CONTEXT)
         if self.web_search:
             parts.append(WEB_SEARCH_CONTEXT)
-        
+
         # Custom instructions
         if self.custom_instructions:
             parts.append(f"## Custom Instructions\n{self.custom_instructions}")
-        
+
         if not parts:
             return None
-        
+
         return "\n\n".join(parts)
-    
+
     def _render_template(self, template: str) -> str:
         """Render template with variables.
-        
+
         Supports both {{key}} and ${key} syntax.
-        
+
         Args:
             template: Template string.
-            
+
         Returns:
             Rendered string with variables substituted.
         """
@@ -325,7 +325,7 @@ class SystemPrompt:
             # Support ${key} syntax
             result = result.replace(f"${{{key}}}", value)
         return result
-    
+
     def _recalculate_tokens(self) -> None:
         """Recalculate token count estimate."""
         rendered = self.render()
@@ -339,11 +339,12 @@ class SystemPrompt:
 # Builder Pattern
 # =============================================================================
 
+
 class SystemPromptBuilder:
     """Builder for system prompts.
-    
+
     Provides a fluent interface for constructing SystemPrompt instances.
-    
+
     Example:
         prompt = (SystemPromptBuilder()
             .persona("You are a helpful assistant.")
@@ -352,118 +353,109 @@ class SystemPromptBuilder:
             .code_execution()
             .build())
     """
-    
+
     def __init__(self) -> None:
         """Create a new builder."""
         self._prompt = SystemPrompt()
-    
+
     def base(self, base: str) -> SystemPromptBuilder:
         """Set base prompt.
-        
+
         Args:
             base: Base prompt text.
-            
+
         Returns:
             Self for method chaining.
         """
         self._prompt.base = base
         return self
-    
+
     def persona(self, persona: str) -> SystemPromptBuilder:
         """Set persona.
-        
+
         Args:
             persona: Persona/role description.
-            
+
         Returns:
             Self for method chaining.
         """
         self._prompt.persona = persona
         return self
-    
+
     def section(
-        self,
-        name: str,
-        content: str,
-        priority: int = 0,
-        enabled: bool = True
+        self, name: str, content: str, priority: int = 0, enabled: bool = True
     ) -> SystemPromptBuilder:
         """Add a section.
-        
+
         Args:
             name: Section name (used as header).
             content: Section content.
             priority: Priority (higher = earlier in prompt).
             enabled: Whether section is enabled.
-            
+
         Returns:
             Self for method chaining.
         """
         self._prompt.sections.append(
-            PromptSection(
-                name=name,
-                content=content,
-                priority=priority,
-                enabled=enabled
-            )
+            PromptSection(name=name, content=content, priority=priority, enabled=enabled)
         )
         return self
-    
+
     def variable(self, key: str, value: str) -> SystemPromptBuilder:
         """Add a variable.
-        
+
         Args:
             key: Variable name.
             value: Variable value.
-            
+
         Returns:
             Self for method chaining.
         """
         self._prompt.variables[key] = value
         return self
-    
+
     def custom_instructions(self, instructions: str) -> SystemPromptBuilder:
         """Set custom instructions.
-        
+
         Args:
             instructions: Custom instructions text.
-            
+
         Returns:
             Self for method chaining.
         """
         self._prompt.custom_instructions = instructions
         return self
-    
+
     def code_execution(self) -> SystemPromptBuilder:
         """Enable code execution context.
-        
+
         Returns:
             Self for method chaining.
         """
         self._prompt.code_execution = True
         return self
-    
+
     def file_operations(self) -> SystemPromptBuilder:
         """Enable file operations context.
-        
+
         Returns:
             Self for method chaining.
         """
         self._prompt.file_operations = True
         return self
-    
+
     def web_search(self) -> SystemPromptBuilder:
         """Enable web search context.
-        
+
         Returns:
             Self for method chaining.
         """
         self._prompt.web_search = True
         return self
-    
+
     def build(self) -> SystemPrompt:
         """Build the system prompt.
-        
+
         Returns:
             Configured SystemPrompt instance.
         """
@@ -475,59 +467,64 @@ class SystemPromptBuilder:
 # Presets
 # =============================================================================
 
+
 class Presets:
     """Predefined system prompts for common use cases."""
-    
+
     @staticmethod
     def coding_assistant() -> SystemPrompt:
         """Default coding assistant prompt.
-        
+
         Returns:
             SystemPrompt configured for coding assistance.
         """
-        return (SystemPromptBuilder()
+        return (
+            SystemPromptBuilder()
             .persona("You are Fabric, an expert AI coding assistant.")
             .base(CODING_ASSISTANT_BASE)
             .code_execution()
             .file_operations()
-            .build())
-    
+            .build()
+        )
+
     @staticmethod
     def research_assistant() -> SystemPrompt:
         """Research assistant prompt.
-        
+
         Returns:
             SystemPrompt configured for research assistance.
         """
-        return (SystemPromptBuilder()
+        return (
+            SystemPromptBuilder()
             .persona("You are a helpful research assistant with access to web search.")
             .base("Help the user find and analyze information. Cite sources when possible.")
             .web_search()
-            .build())
-    
+            .build()
+        )
+
     @staticmethod
     def code_reviewer() -> SystemPrompt:
         """Code review prompt.
-        
+
         Returns:
             SystemPrompt configured for code review.
         """
-        return (SystemPromptBuilder()
+        return (
+            SystemPromptBuilder()
             .persona("You are an expert code reviewer.")
             .base(CODE_REVIEWER_BASE)
             .file_operations()
-            .build())
-    
+            .build()
+        )
+
     @staticmethod
     def minimal() -> SystemPrompt:
         """Minimal assistant prompt.
-        
+
         Returns:
             SystemPrompt with minimal configuration.
         """
-        return (SystemPromptBuilder()
-            .base("You are a helpful assistant. Be concise.")
-            .build())
+        return SystemPromptBuilder().base("You are a helpful assistant. Be concise.").build()
 
 
 # =============================================================================
@@ -779,28 +776,28 @@ def get_system_prompt(
     shell: Optional[str] = None,
 ) -> str:
     """Get the full system prompt with environment context.
-    
+
     Uses the SYSTEM_PROMPT constant which includes autonomous behavior
     and mandatory verification plan instructions.
-    
+
     Args:
         cwd: Current working directory.
         shell: Shell being used.
-        
+
     Returns:
         Complete system prompt string.
     """
     # Use the SYSTEM_PROMPT constant directly (includes all autonomous behavior instructions)
     cwd_str = str(cwd) if cwd else "/app"
     shell_str = shell or "/bin/sh"
-    
+
     # Add environment section
     env_lines = [
         f"- Working directory: {cwd_str}",
         f"- Platform: {platform.system()}",
         f"- Shell: {shell_str}",
     ]
-    
+
     return f"{SYSTEM_PROMPT}\n\n# Environment\n" + "\n".join(env_lines)
 
 

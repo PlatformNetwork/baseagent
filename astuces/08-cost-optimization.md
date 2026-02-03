@@ -2,21 +2,20 @@
 
 ## Cost Breakdown
 
-For Claude Sonnet via OpenRouter:
+Typical LLM pricing (varies by model):
 
-| Token Type | Cost per 1M |
-|------------|-------------|
-| Input tokens | $3.00 |
-| Cached input | $0.30 (90% off) |
-| Output tokens | $15.00 |
+| Token Type | Typical Cost per 1M |
+|------------|---------------------|
+| Input tokens | $1.00 - $15.00 |
+| Cached input | 10-50% of input |
+| Output tokens | $2.00 - $60.00 |
 
 For a typical task:
 - 50 turns
 - 100k context average
 - 500 output tokens per turn
 
-**Without optimization**: 50 × 100k × $3/1M = **$15 per task**
-**With 90% caching**: 50 × 100k × $0.30/1M = **$1.50 per task**
+Costs vary significantly by model choice. DeepSeek models are typically more cost-effective than Claude or GPT-4.
 
 ## Optimization Strategies
 
