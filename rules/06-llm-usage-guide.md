@@ -502,9 +502,10 @@ Community fine-tuned models are **forbidden** because they may:
 
 ```python
 def setup(self):
-    # Default model: Kimi K2.5-TEE (1T params, 32B activated)
+    # Any official foundation model works
+    # Examples: claude-3.5-sonnet, gpt-4o, deepseek-v3, llama-3, etc.
     self.llm = LLMClient(
-        model="moonshotai/Kimi-K2.5-TEE",
+        model="moonshotai/Kimi-K2.5-TEE",  # or any supported model
         temperature=0.3
     )
 ```
