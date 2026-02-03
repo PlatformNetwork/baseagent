@@ -243,7 +243,7 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
 
 def get_all_tools() -> list[dict[str, Any]]:
     """Get all tool specifications as a list.
-    
+
     Returns:
         List of tool specification dicts
     """
@@ -252,10 +252,10 @@ def get_all_tools() -> list[dict[str, Any]]:
 
 def get_tool_spec(name: str) -> dict[str, Any] | None:
     """Get a specific tool specification.
-    
+
     Args:
         name: Name of the tool
-        
+
     Returns:
         Tool specification dict or None if not found
     """
