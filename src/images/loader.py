@@ -17,7 +17,7 @@ import hashlib
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Tuple
 
 # Maximum image dimensions (like Codex)
 MAX_WIDTH = 2048
@@ -26,6 +26,7 @@ MAX_HEIGHT = 768
 # Try to import PIL for image processing
 try:
     from PIL import Image
+
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
@@ -55,10 +56,10 @@ def _file_hash(path: Path) -> str:
 def load_image_bytes(path: Path) -> Tuple[bytes, str]:
     """
     Load image bytes from disk.
-    
+
     Args:
         path: Path to image file
-        
+
     Returns:
         Tuple of (bytes, mime_type)
     """
@@ -76,33 +77,33 @@ def resize_image(
 ) -> Tuple[bytes, str]:
     """
     Resize image if it exceeds max dimensions.
-    
+
     Args:
         data: Image bytes
         mime: MIME type
         max_width: Maximum width
         max_height: Maximum height
-        
+
     Returns:
         Tuple of (resized_bytes, mime_type)
     """
     if not HAS_PIL:
         # Can't resize without PIL, return as-is
         return data, mime
-    
+
     try:
         img = Image.open(BytesIO(data))
-        
+
         # Check if resize needed
         if img.width <= max_width and img.height <= max_height:
             return data, mime
-        
+
         # Resize maintaining aspect ratio
         img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-        
+
         # Encode back to bytes
         output = BytesIO()
-        
+
         # Use PNG for transparency, JPEG for photos
         if img.mode in ("RGBA", "LA") or mime == "image/png":
             img.save(output, format="PNG", optimize=True)
@@ -113,7 +114,7 @@ def resize_image(
                 img = img.convert("RGB")
             img.save(output, format="JPEG", quality=85, optimize=True)
             return output.getvalue(), "image/jpeg"
-            
+
     except Exception:
         # On any error, return original
         return data, mime
@@ -123,46 +124,46 @@ def resize_image(
 def _load_cached(path_str: str, file_hash: str) -> str:
     """Load and cache image as data URI (internal)."""
     path = Path(path_str)
-    
+
     # Load raw bytes
     data, mime = load_image_bytes(path)
-    
+
     # Resize if needed
     data, mime = resize_image(data, mime)
-    
+
     # Encode as base64
     b64 = base64.b64encode(data).decode("ascii")
-    
+
     return f"data:{mime};base64,{b64}"
 
 
 def load_image_as_data_uri(path: Path) -> str:
     """
     Load image, resize if needed, encode as base64 data URI.
-    
+
     Uses LRU cache based on file path and content hash.
-    
+
     Args:
         path: Path to image file
-        
+
     Returns:
         Data URI string (data:image/png;base64,...)
-        
+
     Raises:
         FileNotFoundError: If image doesn't exist
         ValueError: If file is not a valid image
     """
     path = Path(path).resolve()
-    
+
     if not path.exists():
         raise FileNotFoundError(f"Image not found: {path}")
-    
+
     if not path.is_file():
         raise ValueError(f"Not a file: {path}")
-    
+
     # Get file hash for cache key
     file_hash = _file_hash(path)
-    
+
     # Load with caching
     return _load_cached(str(path), file_hash)
 
@@ -170,10 +171,10 @@ def load_image_as_data_uri(path: Path) -> str:
 def make_image_content(data_uri: str) -> dict:
     """
     Create image content block for LLM API.
-    
+
     Args:
         data_uri: Base64 data URI
-        
+
     Returns:
         Content block dict for API
     """

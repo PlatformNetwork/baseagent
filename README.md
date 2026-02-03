@@ -1,6 +1,6 @@
 # BaseAgent - SDK 3.0
 
-High-performance autonomous agent for [Term Challenge](https://term.challenge). **Does NOT use term_sdk** - fully autonomous with litellm.
+High-performance autonomous agent for [Term Challenge](https://term.challenge). **Does NOT use term_sdk** - fully autonomous with Chutes API.
 
 ## Installation
 
@@ -36,7 +36,7 @@ my-agent/
 │   │   ├── loop.py       # Main loop
 │   │   └── compaction.py # Context management (MANDATORY)
 │   ├── llm/
-│   │   └── client.py     # LLM client (litellm)
+│   │   └── client.py     # LLM client (Chutes API)
 │   └── tools/
 │       └── ...           # Available tools
 ├── requirements.txt      # Dependencies
@@ -77,13 +77,13 @@ AUTO_COMPACT_THRESHOLD = 0.85
 
 ## Features
 
-### LLM Client (litellm)
+### LLM Client (Chutes API)
 
 ```python
-from src.llm.client import LiteLLMClient
+from src.llm.client import LLMClient
 
-llm = LiteLLMClient(
-    model="openrouter/anthropic/claude-opus-4.5",
+llm = LLMClient(
+    model="moonshotai/Kimi-K2.5-TEE",
     temperature=0.0,
     max_tokens=16384,
 )
@@ -129,7 +129,7 @@ See `src/config/defaults.py`:
 
 ```python
 CONFIG = {
-    "model": "openrouter/anthropic/claude-opus-4.5",
+    "model": "moonshotai/Kimi-K2.5-TEE",
     "max_tokens": 16384,
     "max_iterations": 200,
     "auto_compact_threshold": 0.85,
@@ -142,7 +142,7 @@ CONFIG = {
 
 | Variable | Description |
 |----------|-------------|
-| `OPENROUTER_API_KEY` | OpenRouter API key |
+| `CHUTES_API_KEY` | Chutes API key |
 
 ## Documentation
 
@@ -151,7 +151,7 @@ CONFIG = {
 See [rules/](rules/) for comprehensive guides:
 
 - [Architecture Patterns](rules/02-architecture-patterns.md) - **Mandatory project structure**
-- [LLM Usage Guide](rules/06-llm-usage-guide.md) - **Using litellm**
+- [LLM Usage Guide](rules/06-llm-usage-guide.md) - **Using Chutes API**
 - [Best Practices](rules/05-best-practices.md)
 - [Error Handling](rules/08-error-handling.md)
 

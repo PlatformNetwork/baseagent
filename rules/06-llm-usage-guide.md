@@ -1,6 +1,6 @@
-# 06 - LLM Usage Guide (SDK 3.0 - litellm)
+# 06 - LLM Usage Guide (SDK 3.0 - Chutes API)
 
-This guide covers using LLMs with **litellm** (no more term_sdk).
+This guide covers using LLMs with **Chutes API** via httpx (no more term_sdk).
 
 ---
 
@@ -9,11 +9,11 @@ This guide covers using LLMs with **litellm** (no more term_sdk).
 ### Initialization
 
 ```python
-from src.llm.client import LiteLLMClient, LLMError, CostLimitExceeded
+from src.llm.client import LLMClient, LLMError, CostLimitExceeded
 
 # Create the LLM client
-llm = LiteLLMClient(
-    model="openrouter/anthropic/claude-opus-4.5",
+llm = LLMClient(
+    model="moonshotai/Kimi-K2.5-TEE",
     temperature=0.0,  # 0 = deterministic
     max_tokens=16384,
     cost_limit=10.0   # Cost limit in $
@@ -342,7 +342,7 @@ def run(self, ctx: Any):
 ### Defining Tools
 
 ```python
-# Format OpenAI/litellm pour les outils
+# Tool format (OpenAI-compatible)
 
 TOOLS = [
     Tool(
@@ -502,11 +502,9 @@ Community fine-tuned models are **forbidden** because they may:
 
 ```python
 def setup(self):
-    # Any official foundation model works
-    # Examples: claude-3.5-sonnet, gpt-4o, deepseek-v3, llama-3, etc.
-    self.llm = LLM(
-        provider="openrouter",  # or any supported provider
-        default_model="anthropic/claude-3.5-sonnet",
+    # Default model: Kimi K2.5-TEE (1T params, 32B activated)
+    self.llm = LLMClient(
+        model="moonshotai/Kimi-K2.5-TEE",
         temperature=0.3
     )
 ```
@@ -542,74 +540,24 @@ def run(self, ctx: Any):
 
 ## Prompt Caching
 
-Prompt caching significantly reduces costs and latency by reusing previously processed prompts. The Term SDK supports caching via the `cache=True` parameter.
+Prompt caching significantly reduces costs and latency by reusing previously processed prompts.
 
-### Enabling Caching in Term SDK
-
-```python
-from src.llm.client import LiteLLMClient
-
-class MyAgent(Agent):
-    def setup(self):
-        self.llm = LLM(
-            provider="openrouter",
-            default_model="anthropic/claude-3.5-sonnet",
-            cache=True  # Enable prompt caching
-        )
-```
-
-### How Caching Works by Provider
-
-| Provider | Caching | Configuration |
-|----------|---------|---------------|
-| **OpenAI** | Automatic | No config needed, min 1024 tokens |
-| **Anthropic** | Manual | Requires `cache_control` breakpoints |
-| **DeepSeek** | Automatic | No config needed |
-| **Google Gemini** | Automatic | No config needed, min 4096 tokens |
-| **Groq** | Automatic | No config needed |
-
-### Anthropic Cache Control (Important!)
-
-Anthropic requires explicit `cache_control` breakpoints. This is critical for cost savings:
-
-**Pricing:**
-- **Cache writes**: 1.25x input price (slightly more expensive)
-- **Cache reads**: 0.1x input price (90% savings!)
-
-**TTL Options:**
-- Default: 5 minutes
-- Extended: 1 hour with `"ttl": "1h"`
-
-### Anthropic Caching Example
+### Enabling Caching
 
 ```python
-# Structure messages with cache_control for large content
-messages = [
-    {
-        "role": "system",
-        "content": [
-            {
-                "type": "text",
-                "text": "You are a task-solving agent."
-            },
-            {
-                "type": "text",
-                "text": LARGE_SYSTEM_PROMPT,  # Cache this!
-                "cache_control": {
-                    "type": "ephemeral",
-                    "ttl": "1h"  # Optional: extend to 1 hour
-                }
-            }
-        ]
-    },
-    {
-        "role": "user",
-        "content": f"Task: {ctx.instruction}"
-    }
-]
+from src.llm.client import LLMClient
 
-response = self.llm.chat(messages)
+# Caching is handled at the message level
+llm = LLMClient(
+    model="moonshotai/Kimi-K2.5-TEE",
+)
+
+# The system manages caching automatically through message preparation
 ```
+
+### How Caching Works
+
+Caching behavior depends on the model and provider. The client handles cache_control markers automatically, stripping them for providers that don't support them.
 
 ### What to Cache
 
@@ -625,48 +573,22 @@ response = self.llm.chat(messages)
 - Changing context
 - Small prompts (under 1024 tokens)
 
-### Cache Placement Strategy
-
-```python
-# Put static content FIRST, dynamic content LAST
-messages = [
-    {
-        "role": "system",
-        "content": [
-            # Static: Cache this large prompt
-            {
-                "type": "text",
-                "text": STATIC_SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"}
-            }
-        ]
-    },
-    # Dynamic: User instruction (changes each task)
-    {"role": "user", "content": ctx.instruction},
-    # Dynamic: Previous outputs (change each iteration)
-    {"role": "assistant", "content": last_response},
-    {"role": "user", "content": command_output}
-]
-```
-
 ### Inspecting Cache Usage
 
 ```python
-response = self.llm.chat(messages, usage=True)
+response = llm.chat(messages)
 
-# Check cache statistics
-if response.usage:
-    cached_tokens = response.usage.get("cached_tokens", 0)
-    cache_discount = response.usage.get("cache_discount", 0)
-    print(f"Cached: {cached_tokens} tokens, saved: ${cache_discount:.4f}")
+# Check cache statistics from response tokens
+if response.tokens:
+    cached_tokens = response.tokens.get("cached", 0)
+    print(f"Cached: {cached_tokens} tokens")
 ```
 
 ### Cost Optimization Tips
 
 1. **Keep static content first** - Cache hits require matching prefixes
-2. **Use 1-hour TTL for long sessions** - Avoids repeated cache writes
-3. **Batch related requests** - Maximize cache hits within TTL window
-4. **Monitor cache_discount** - Negative = cache write, positive = savings
+2. **Batch related requests** - Maximize cache hits within TTL window
+3. **Monitor token usage** - Track cached vs uncached tokens
 
 ---
 
@@ -681,4 +603,4 @@ if response.usage:
 | Token awareness | Truncate long outputs |
 | Clear prompts | Specific format requirements |
 | Tool definitions | Well-documented parameters |
-| **Prompt caching** | Enable `cache=True`, use cache_control for Anthropic |
+| **Prompt caching** | Use static prompts first for better cache hits |

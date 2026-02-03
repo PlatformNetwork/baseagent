@@ -10,30 +10,32 @@ from typing import Any, Optional
 
 class EventType(str, Enum):
     """Types of events that can be emitted."""
+
     TURN_STARTED = "turn.started"
     TURN_COMPLETED = "turn.completed"
     TURN_FAILED = "turn.failed"
-    
+
     ITEM_STARTED = "item.started"
     ITEM_UPDATED = "item.updated"
     ITEM_COMPLETED = "item.completed"
-    
+
     MESSAGE = "message"
     THINKING = "thinking"
-    
+
     TOOL_CALL_START = "tool.call.start"
     TOOL_CALL_END = "tool.call.end"
-    
+
     ERROR = "error"
 
 
 @dataclass
 class Event:
     """An event from the agent."""
+
     type: EventType
     timestamp: datetime = field(default_factory=datetime.now)
     data: dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
         return {
@@ -41,7 +43,7 @@ class Event:
             "timestamp": self.timestamp.isoformat(),
             **self.data,
         }
-    
+
     @classmethod
     def turn_started(cls, session_id: str) -> "Event":
         """Create a turn started event."""
@@ -49,7 +51,7 @@ class Event:
             type=EventType.TURN_STARTED,
             data={"session_id": session_id},
         )
-    
+
     @classmethod
     def turn_completed(
         cls,
@@ -72,7 +74,7 @@ class Event:
                 },
             },
         )
-    
+
     @classmethod
     def message(cls, content: str, role: str = "assistant") -> "Event":
         """Create a message event."""
@@ -80,12 +82,12 @@ class Event:
             type=EventType.MESSAGE,
             data={"content": content, "role": role},
         )
-    
+
     @classmethod
     def thinking(cls) -> "Event":
         """Create a thinking event."""
         return cls(type=EventType.THINKING)
-    
+
     @classmethod
     def tool_call_start(cls, name: str, arguments: dict[str, Any]) -> "Event":
         """Create a tool call start event."""
@@ -93,7 +95,7 @@ class Event:
             type=EventType.TOOL_CALL_START,
             data={"name": name, "arguments": arguments},
         )
-    
+
     @classmethod
     def tool_call_end(
         cls,
@@ -112,7 +114,7 @@ class Event:
                 "error": error,
             },
         )
-    
+
     @classmethod
     def error(cls, message: str, details: Optional[dict[str, Any]] = None) -> "Event":
         """Create an error event."""

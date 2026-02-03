@@ -20,7 +20,7 @@ my-agent/
 │   │   ├── loop.py       # Main loop
 │   │   └── compaction.py # Context management (MANDATORY)
 │   ├── llm/
-│   │   └── client.py     # LLM client (litellm)
+│   │   └── client.py     # LLM client (Chutes API)
 │   └── tools/
 │       └── ...           # Tools
 ├── requirements.txt      # Dependencies
@@ -275,7 +275,7 @@ flowchart TB
 ### Implementation
 
 ```python
-# Définition des outils (format OpenAI/litellm)
+# Tool definition (OpenAI-compatible format)
 TOOLS = [
     {
         "name": "run_command",

@@ -29,7 +29,7 @@ def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = "_") -> di
 def _nest_dict(flat: dict[str, Any]) -> dict[str, Any]:
     """Convert a flat dictionary with underscores to nested structure."""
     result: dict[str, Any] = {}
-    
+
     # Map of flat keys to nested paths
     mappings = {
         "agent_model": ["model"],
@@ -59,7 +59,7 @@ def _nest_dict(flat: dict[str, Any]) -> dict[str, Any]:
         "paths_readable_roots": ["paths", "readable_roots"],
         "paths_writable_roots": ["paths", "writable_roots"],
     }
-    
+
     for flat_key, value in flat.items():
         if flat_key in mappings:
             path = mappings[flat_key]
@@ -69,34 +69,34 @@ def _nest_dict(flat: dict[str, Any]) -> dict[str, Any]:
                     current[part] = {}
                 current = current[part]
             current[path[-1]] = value
-    
+
     return result
 
 
 def load_config_from_file(path: Path) -> AgentConfig:
     """Load configuration from a TOML file.
-    
+
     Args:
         path: Path to the TOML configuration file.
-        
+
     Returns:
         AgentConfig instance with loaded configuration.
-        
+
     Raises:
         FileNotFoundError: If the config file doesn't exist.
         ValueError: If the config file is invalid.
     """
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
-    
+
     with open(path, "rb") as f:
         raw_config = tomllib.load(f)
-    
+
     # TOML structure: [agent], [cache], [retry], etc.
     # We need to transform it to match our Pydantic model structure
     flat = _flatten_dict(raw_config)
     nested = _nest_dict(flat)
-    
+
     # Also handle direct keys from [agent] section
     if "agent" in raw_config:
         for key, value in raw_config["agent"].items():
@@ -104,12 +104,12 @@ def load_config_from_file(path: Path) -> AgentConfig:
                 nested[key] = value
             if key == "reasoning" and isinstance(value, dict):
                 nested["reasoning"] = value
-    
+
     # Handle other top-level sections directly
     for section in ["cache", "retry", "tools", "output", "paths"]:
         if section in raw_config and section not in nested:
             nested[section] = raw_config[section]
-    
+
     return AgentConfig(**nested)
 
 
@@ -118,31 +118,31 @@ def load_config(
     overrides: Optional[dict[str, Any]] = None,
 ) -> AgentConfig:
     """Load configuration with optional overrides.
-    
+
     Args:
         config_path: Optional path to a TOML config file.
         overrides: Optional dictionary of configuration overrides.
-        
+
     Returns:
         AgentConfig instance.
     """
     # Start with defaults
     config_dict: dict[str, Any] = {}
-    
+
     # Load from file if provided
     if config_path and config_path.exists():
         with open(config_path, "rb") as f:
             raw_config = tomllib.load(f)
-        
+
         # Transform TOML structure
         if "agent" in raw_config:
             for key, value in raw_config["agent"].items():
                 config_dict[key] = value
-        
+
         for section in ["cache", "retry", "tools", "output", "paths"]:
             if section in raw_config:
                 config_dict[section] = raw_config[section]
-    
+
     # Apply overrides
     if overrides:
         for key, value in overrides.items():
@@ -157,19 +157,19 @@ def load_config(
                 current[parts[-1]] = value
             else:
                 config_dict[key] = value
-    
+
     return AgentConfig(**config_dict)
 
 
 def find_config_file() -> Optional[Path]:
     """Find the configuration file in standard locations.
-    
+
     Searches in order:
     1. ./config.toml
     2. ./superagent.toml
     3. ~/.config/superagent/config.toml
     4. ~/.superagent/config.toml
-    
+
     Returns:
         Path to the config file if found, None otherwise.
     """
@@ -179,9 +179,9 @@ def find_config_file() -> Optional[Path]:
         Path.home() / ".config" / "superagent" / "config.toml",
         Path.home() / ".superagent" / "config.toml",
     ]
-    
+
     for path in search_paths:
         if path.exists():
             return path
-    
+
     return None
