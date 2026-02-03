@@ -13,7 +13,7 @@ from src.llm.client import LLMClient, LLMError, CostLimitExceeded
 
 # Create the LLM client
 llm = LLMClient(
-    model="deepseek/deepseek-chat",
+    model="moonshotai/Kimi-K2.5-TEE",
     temperature=0.0,  # 0 = deterministic
     max_tokens=16384,
     cost_limit=10.0   # Cost limit in $
@@ -505,7 +505,7 @@ def setup(self):
     # Any official foundation model works
     # Examples: claude-3.5-sonnet, gpt-4o, deepseek-v3, llama-3, etc.
     self.llm = LLMClient(
-        model="deepseek/deepseek-chat",  # or any supported model
+        model="moonshotai/Kimi-K2.5-TEE",  # or any supported model
         temperature=0.3
     )
 ```
@@ -550,7 +550,7 @@ from src.llm.client import LLMClient
 
 # Caching is handled at the message level
 llm = LLMClient(
-    model="deepseek/deepseek-chat",
+    model="moonshotai/Kimi-K2.5-TEE",
 )
 
 # The system manages caching automatically through message preparation
