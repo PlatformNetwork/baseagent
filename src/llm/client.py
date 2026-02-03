@@ -74,7 +74,7 @@ class LLMClient:
     """LLM Client using httpx for Chutes API (OpenAI-compatible format)."""
 
     # Default Chutes API configuration
-    DEFAULT_BASE_URL = "https://api.chutes.ai/v1"
+    DEFAULT_BASE_URL = "https://llm.chutes.ai/v1"
     DEFAULT_API_KEY_ENV = "CHUTES_API_KEY"
 
     def __init__(
