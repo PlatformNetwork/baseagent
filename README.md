@@ -1,8 +1,8 @@
-# BaseAgent - SDK 3.0
-
-> **High-performance autonomous agent for [Term Challenge](https://term.challenge)**
-
-Fully autonomous with **Chutes API** - powered by **moonshotai/Kimi-K2.5-TEE** (1T params, 32B activated, 256K context).
+<p align="center">
+  <h1 align="center">BaseAgent</h1>
+  <p align="center"><strong>High-performance autonomous agent for <a href="https://term.challenge">Term Challenge</a></strong></p>
+  <p align="center">Fully autonomous with <strong>Chutes API</strong> - powered by <strong>moonshotai/Kimi-K2.5-TEE</strong> (1T params, 32B activated, 256K context)</p>
+</p>
 
 ---
 
@@ -10,26 +10,28 @@ Fully autonomous with **Chutes API** - powered by **moonshotai/Kimi-K2.5-TEE** (
 
 ```mermaid
 graph TB
-    subgraph User["User Interface"]
-        CLI["CLI (agent.py)"]
+    subgraph Basilica["Basilica TEE Container"]
+        subgraph TermChallenge["Term Challenge Agent"]
+            CLI["agent.py"]
+            
+            subgraph Core["Core Engine"]
+                Loop["Agent Loop"]
+                Context["Context Manager"]
+                Cache["Prompt Cache"]
+            end
+            
+            subgraph Tools["Tool System"]
+                Registry["Tool Registry"]
+                Shell["shell_command"]
+                Files["read_file / write_file"]
+                Search["grep_files / list_dir"]
+            end
+        end
     end
     
-    subgraph Core["Core Engine"]
-        Loop["Agent Loop"]
-        Context["Context Manager"]
-        Cache["Prompt Cache"]
-    end
-    
-    subgraph LLM["LLM Layer"]
+    subgraph LLM["LLM Layer (External)"]
         Client["Chutes API Client"]
         Model["moonshotai/Kimi-K2.5-TEE"]
-    end
-    
-    subgraph Tools["Tool System"]
-        Registry["Tool Registry"]
-        Shell["shell_command"]
-        Files["read_file / write_file"]
-        Search["grep_files / list_dir"]
     end
     
     CLI --> Loop
@@ -41,6 +43,9 @@ graph TB
     Registry --> Shell
     Registry --> Files
     Registry --> Search
+    
+    style Basilica fill:#1a1a2e,color:#fff
+    style TermChallenge fill:#16213e,color:#fff
 ```
 
 ---
@@ -136,6 +141,79 @@ flowchart TB
 
 ---
 
+## Available Tools
+
+```mermaid
+flowchart LR
+    subgraph ToolRegistry["Tool Registry"]
+        direction TB
+        
+        subgraph FileOps["File Operations"]
+            read["read_file<br/>Read with pagination"]
+            write["write_file<br/>Create/overwrite files"]
+            patch["apply_patch<br/>Apply unified diffs"]
+        end
+        
+        subgraph Search["Search & Navigation"]
+            grep["grep_files<br/>Ripgrep search"]
+            list["list_dir<br/>Directory listing"]
+            search["search_files<br/>Glob patterns"]
+        end
+        
+        subgraph Execution["Execution"]
+            shell["shell_command<br/>Run shell commands"]
+        end
+        
+        subgraph Media["Media"]
+            image["view_image<br/>Analyze images"]
+        end
+    end
+    
+    Agent[Agent Loop] --> ToolRegistry
+    ToolRegistry --> Results[Tool Results]
+    Results --> Agent
+```
+
+| Tool | Description | Key Parameters |
+|------|-------------|----------------|
+| `shell_command` | Execute shell commands | `command`, `timeout_ms` |
+| `read_file` | Read files with pagination | `file_path`, `offset`, `limit` |
+| `write_file` | Create/overwrite files | `file_path`, `content` |
+| `apply_patch` | Apply unified diff patches | `patch` |
+| `grep_files` | Search with ripgrep | `pattern`, `path`, `include` |
+| `list_dir` | List directory contents | `path`, `recursive`, `depth` |
+| `search_files` | Search files by glob pattern | `pattern`, `path` |
+| `view_image` | Analyze image files | `file_path` |
+
+---
+
+## Tool Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant Agent as Agent Loop
+    participant Registry as Tool Registry
+    participant Tool as Tool Implementation
+    participant FS as File System
+
+    Agent->>Registry: execute(tool_name, args)
+    Registry->>Registry: Validate arguments
+    Registry->>Registry: Check cache
+    
+    alt Cache Hit
+        Registry-->>Agent: Cached ToolResult
+    else Cache Miss
+        Registry->>Tool: execute(**args)
+        Tool->>FS: Perform operation
+        FS-->>Tool: Result
+        Tool-->>Registry: ToolResult
+        Registry->>Registry: Cache result
+        Registry-->>Agent: ToolResult
+    end
+```
+
+---
+
 ## LLM Client (Chutes API)
 
 ```python
@@ -213,20 +291,6 @@ flowchart LR
 
 ---
 
-## Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `shell_command` | Execute shell commands |
-| `read_file` | Read files with pagination |
-| `write_file` | Create/overwrite files |
-| `apply_patch` | Apply patches |
-| `grep_files` | Search with ripgrep |
-| `list_dir` | List directories |
-| `view_image` | Analyze images |
-
----
-
 ## Configuration
 
 ```python
@@ -265,6 +329,23 @@ See [rules/](rules/) for development guidelines.
 
 ---
 
+## Related Projects
+
+| Project | Description |
+|---------|-------------|
+| [Basilica](https://github.com/one-covenant/basilica) | Secure TEE Container Runtime |
+| [Chutes Project](https://github.com/chutesai/chutes) | Chutes AI - LLM API Provider |
+| [Platform Project](https://github.com/PlatformNetwork/platform) | Platform Network Core |
+| [How to Mine with this Agent](https://www.platform.network/docs) | Mining Documentation |
+
+---
+
 ## License
 
 MIT License - see [LICENSE](LICENSE).
+
+---
+
+<p align="center">
+  <strong>BaseAgent</strong>
+</p>
