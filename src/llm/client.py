@@ -94,12 +94,17 @@ class LLMClient:
         self.base_url = base_url or os.environ.get("CHUTES_BASE_URL", self.DEFAULT_BASE_URL)
         self.timeout = timeout
 
-        # Get API key
+        # Get API key (try CHUTES_API_KEY first, then fall back to OPENROUTER_API_KEY)
         self._api_key = api_key or os.environ.get(self.DEFAULT_API_KEY_ENV)
         if not self._api_key:
-            raise ValueError(
-                f"API key required. Set {self.DEFAULT_API_KEY_ENV} environment variable or pass api_key parameter."
-            )
+            openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+            if openrouter_key:
+                self._api_key = openrouter_key
+                self.base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+            else:
+                raise ValueError(
+                    f"API key required. Set {self.DEFAULT_API_KEY_ENV} or OPENROUTER_API_KEY environment variable or pass api_key parameter."
+                )
 
         self._total_cost = 0.0
         self._total_tokens = 0
